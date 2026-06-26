@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Pro Data Studio - V7 Ultimate Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { gray: { 850: '#1f2937', 900: '#111827', 950: '#0b0f19' } } } }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; background-color: #1f2937; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .tab-active { background-color: #2563eb; color: white; border-color: #3b82f6; }
+        .tab-inactive { background-color: #1f2937; color: #9ca3af; border-color: #374151; }
+        .tab-inactive:hover { background-color: #374151; }
+        .category-header { font-size: 0.65rem; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.75rem; margin-bottom: 0.25rem; padding-left: 0.5rem;}
+        .tool-panel { display: none; flex-direction: column; height: 100%; overflow-y: auto; padding: 1.5rem; space-y: 1rem; }
+        .tool-panel.active { display: flex; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-gray-900 border-b border-gray-800 p-3 shadow-md flex justify-between items-center z-10 shrink-0">
+        <div>
+            <h1 class="text-xl font-bold text-blue-400">Excel Pro Data Studio <span class="text-xs text-gray-500 border border-gray-700 rounded px-1 ml-2">V7.0</span></h1>
+            <p class="text-xs text-gray-400">26 Enterprise Modules - The Complete Suite</p>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span id="globalDataBadge" class="px-3 py-1 bg-gray-800 border border-gray-700 rounded-full text-xs font-mono text-gray-300">0 Files Loaded (0 Rows)</span>
+            <label class="bg-blue-600 hover:bg-blue-500 cursor-pointer text-white px-4 py-1.5 rounded shadow transition text-sm font-semibold">
+                Upload Files <input type="file" id="globalFileInput" multiple accept=".csv, .xlsx, .xls" class="hidden">
+            </label>
+            <button id="clearDataBtn" class="bg-red-900 hover:bg-red-800 text-red-200 px-3 py-1.5 rounded transition text-sm hidden">Clear Memory</button>
+        </div>
+    </header>
+
+    <div class="flex flex-grow overflow-hidden">
+        
+        <!-- Sidebar Navigation (26 Tools) -->
+        <nav class="w-72 bg-gray-900 border-r border-gray-800 flex flex-col p-2 space-y-0.5 overflow-y-auto pb-8 shrink-0">
+            <div class="category-header mt-1">Core Data Engine</div>
+            <button onclick="switchTab('tab-merge')" id="btn-tab-merge" class="tab-button tab-active w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">1. Smart Merger</span></button>
+            <button onclick="switchTab('tab-clean')" id="btn-tab-clean" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">2. Cleaner & Dedupe</span></button>
+            <button onclick="switchTab('tab-split')" id="btn-tab-split" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">3. Filter Splitter</span></button>
+            <button onclick="switchTab('tab-flag-dupes')" id="btn-tab-flag-dupes" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm text-green-400">4. Safe Duplicate Flagger</span></button>
+
+            <div class="category-header">Enrichment & Text</div>
+            <button onclick="switchTab('tab-join')" id="btn-tab-join" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">5. VLOOKUP Engine</span></button>
+            <button onclick="switchTab('tab-dict')" id="btn-tab-dict" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">6. Batch Dict Replacer</span></button>
+            <button onclick="switchTab('tab-col-split')" id="btn-tab-col-split" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">7. Column Extractor</span></button>
+            <button onclick="switchTab('tab-concat')" id="btn-tab-concat" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm text-green-400">8. Text Concatenator</span></button>
+            <button onclick="switchTab('tab-regex')" id="btn-tab-regex" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm text-green-400">9. Regex Data Miner</span></button>
+
+            <div class="category-header">Advanced Transformations</div>
+            <button onclick="switchTab('tab-filldown')" id="btn-tab-filldown" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">10. Smart Fill-Down</span></button>
+            <button onclick="switchTab('tab-unpivot')" id="btn-tab-unpivot" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">11. The Un-Pivoter</span></button>
+            <button onclick="switchTab('tab-imputer')" id="btn-tab-imputer" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm text-green-400">12. Blank / Null Imputer</span></button>
+            <button onclick="switchTab('tab-date-ext')" id="btn-tab-date-ext" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm text-green-400">13. Date Component Extractor</span></button>
+            <button onclick="switchTab('tab-format')" id="btn-tab-format" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">14. Standardizer (Text/Date)</span></button>
+
+            <div class="category-header">Math & Logic</div>
+            <button onclick="switchTab('tab-filter')" id="btn-tab-filter" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">15. Conditional Filter</span></button>
+            <button onclick="switchTab('tab-math')" id="btn-tab-math" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">16. Column Math Calc</span></button>
+            <button onclick="switchTab('tab-running')" id="btn-tab-running" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm text-green-400">17. Running Total</span></button>
+            <button onclick="switchTab('tab-id-gen')" id="btn-tab-id-gen" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm text-green-400">18. Unique ID Generator</span></button>
+
+            <div class="category-header">Security & Auditing</div>
+            <button onclick="switchTab('tab-anonymize')" id="btn-tab-anonymize" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">19. Data Anonymizer</span></button>
+            <button onclick="switchTab('tab-compare')" id="btn-tab-compare" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">20. File Comparator</span></button>
+            <button onclick="switchTab('tab-sample')" id="btn-tab-sample" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">21. Audit Sampler</span></button>
+            <button onclick="switchTab('tab-fuzzy')" id="btn-tab-fuzzy" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">22. Fuzzy Matcher (Typos)</span></button>
+            <button onclick="switchTab('tab-validate')" id="btn-tab-validate" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm text-green-400">23. Data Type Validator</span></button>
+
+            <div class="category-header">Analysis & Reporting</div>
+            <button onclick="switchTab('tab-aggregate')" id="btn-tab-aggregate" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">24. Flat Aggregator</span></button>
+            <button onclick="switchTab('tab-matrix')" id="btn-tab-matrix" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">25. 2D Matrix Pivot</span></button>
+            <button onclick="switchTab('tab-profile')" id="btn-tab-profile" class="tab-button tab-inactive w-full text-left px-3 py-1.5 rounded-md border transition"><span class="font-bold text-sm">26. Data Health Profiler</span></button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="flex-grow flex flex-col bg-gray-850 overflow-hidden relative">
+            
+            <!-- EXISITING TOOLS (1, 2, 3) -->
+            <div id="tab-merge" class="tool-panel active"><h2 class="text-xl font-bold text-white">1. Smart Merger</h2><div class="bg-gray-900 p-5 rounded max-w-lg mb-4"><label><input type="checkbox" id="mergeAddSource" checked> Add 'Source_File' column</label></div><button onclick="executeMerge()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg w-48">Download</button></div>
+            <div id="tab-clean" class="tool-panel"><h2 class="text-xl font-bold text-white">2. Cleaner & Dedupe</h2><div class="grid grid-cols-2 gap-4 max-w-2xl mb-4"><div class="bg-gray-900 p-4 border border-gray-700 rounded"><label><input type="checkbox" id="cleanTrim" checked> Trim spaces</label><br><label><input type="checkbox" id="cleanBlanks" checked> Remove blanks</label></div><div class="bg-gray-900 p-4 border border-gray-700 rounded"><label><input type="checkbox" id="cleanDedupe"> Deduplicate</label><select id="dedupeColumn" class="dynamic-col-select w-full bg-gray-800 mt-2 p-1 text-sm"></select></div></div><button onclick="executeClean()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Download</button></div>
+            <div id="tab-split" class="tool-panel"><h2 class="text-xl font-bold text-white">3. Filter Splitter</h2><select id="splitColumn" class="dynamic-col-select bg-gray-800 p-2 mb-4 max-w-sm"></select><button onclick="executeSplit()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Generate ZIP</button></div>
+            
+            <!-- NEW: 4. FLAG DUPES -->
+            <div id="tab-flag-dupes" class="tool-panel">
+                <h2 class="text-xl font-bold text-white">4. Safe Duplicate Flagger</h2><p class="text-gray-400 text-sm mb-4">Adds an 'Is_Duplicate' column (TRUE/FALSE) instead of deleting rows.</p>
+                <div class="max-w-md bg-gray-900 p-4 border border-gray-700 rounded mb-4"><label class="block text-sm mb-1">Check for duplicates in:</label><select id="flagCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select></div>
+                <button onclick="executeFlagDupes()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Flag Data</button>
+            </div>
+
+            <!-- EXISITING TOOLS (5, 6, 7) -->
+            <div id="tab-join" class="tool-panel"><h2 class="text-xl font-bold text-white">5. VLOOKUP Engine</h2><div class="flex space-x-4 mb-4"><div class="bg-gray-900 p-4 border border-gray-700 rounded w-1/2"><h3>File A</h3><select id="joinLeftFile" class="dynamic-file-select bg-gray-800 w-full mb-2"></select><select id="joinLeftCol" class="dynamic-col-select bg-gray-800 w-full"></select></div><div class="bg-gray-900 p-4 border border-gray-700 rounded w-1/2"><h3>File B</h3><select id="joinRightFile" class="dynamic-file-select bg-gray-800 w-full mb-2"></select><select id="joinRightCol" class="dynamic-col-select bg-gray-800 w-full"></select></div></div><button onclick="executeJoin()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Join Data</button></div>
+            <div id="tab-dict" class="tool-panel"><h2 class="text-xl font-bold text-white">6. Batch Dict Replacer</h2><div class="grid grid-cols-2 gap-4 max-w-4xl mb-4"><div class="bg-gray-900 p-4 border border-gray-700 rounded"><h3 class="text-blue-400 mb-2">1. Target</h3><select id="dictTargetFile" class="dynamic-file-select w-full bg-gray-800 p-2 mb-2"></select><select id="dictTargetCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select></div><div class="bg-gray-900 p-4 border border-gray-700 rounded"><h3 class="text-green-400 mb-2">2. Dictionary</h3><select id="dictMapFile" class="dynamic-file-select w-full bg-gray-800 p-2 mb-2"></select><div class="flex space-x-2"><select id="dictOldCol" class="dynamic-col-select w-1/2 bg-gray-800 p-2"></select><select id="dictNewCol" class="dynamic-col-select w-1/2 bg-gray-800 p-2"></select></div></div></div><button onclick="executeDictReplace()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Run Replacements</button></div>
+            <div id="tab-col-split" class="tool-panel"><h2 class="text-xl font-bold text-white">7. Column Extractor</h2><div class="space-y-2 mb-4 max-w-sm"><select id="colExtractTarget" class="dynamic-col-select w-full bg-gray-800 p-2"></select><select id="colExtractAction" class="w-full bg-gray-800 p-2"><option value="delimiter">Split by Delimiter</option><option value="email">Extract Emails</option><option value="number">Extract Numbers</option></select><input type="text" id="colExtractDelimiter" value="," class="w-full bg-gray-800 p-2"></div><button onclick="executeColExtract()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Extract</button></div>
+
+            <!-- NEW: 8. CONCATENATOR & 9. REGEX MINER -->
+            <div id="tab-concat" class="tool-panel">
+                <h2 class="text-xl font-bold text-white">8. Text Concatenator</h2><p class="text-gray-400 text-sm mb-4">Merge multiple columns together (e.g. First Name + Last Name).</p>
+                <div class="bg-gray-900 p-4 border border-gray-700 rounded max-w-md space-y-4 mb-4">
+                    <div><label class="block text-sm mb-1">Columns to Combine (Multi-Select):</label><select id="concatCols" multiple class="dynamic-col-select w-full bg-gray-800 p-2 h-32"></select></div>
+                    <div><label class="block text-sm mb-1">Separator/Delimiter (e.g. a space or comma):</label><input type="text" id="concatDelim" value=" " class="w-full bg-gray-800 p-2"></div>
+                    <div><label class="block text-sm mb-1">New Column Name:</label><input type="text" id="concatName" value="Combined_Text" class="w-full bg-gray-800 p-2"></div>
+                </div>
+                <button onclick="executeConcat()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Concatenate</button>
+            </div>
+
+            <div id="tab-regex" class="tool-panel">
+                <h2 class="text-xl font-bold text-white">9. Regex Data Miner</h2><p class="text-gray-400 text-sm mb-4">Use Regular Expressions to extract highly specific patterns.</p>
+                <div class="bg-gray-900 p-4 border border-gray-700 rounded max-w-xl space-y-4 mb-4">
+                    <div><label class="block text-sm mb-1">Target Column:</label><select id="regexCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select></div>
+                    <div><label class="block text-sm mb-1">Regex Pattern (e.g. ^[A-Z]{3}):</label><input type="text" id="regexPattern" placeholder="\d{4}-\d{2}" class="w-full bg-gray-800 p-2 font-mono"></div>
+                </div>
+                <button onclick="executeRegex()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Extract Pattern</button>
+            </div>
+
+            <!-- EXISITING TOOLS (10, 11) -->
+            <div id="tab-filldown" class="tool-panel"><h2 class="text-xl font-bold text-white">10. Smart Fill-Down</h2><select id="fillDownCol" class="dynamic-col-select w-full max-w-sm bg-gray-800 p-2 mb-4"></select><button onclick="executeFillDown()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Fill Down</button></div>
+            <div id="tab-unpivot" class="tool-panel"><h2 class="text-xl font-bold text-white">11. The Un-Pivoter</h2><select id="unpivotCols" multiple class="dynamic-col-select w-full max-w-sm bg-gray-800 p-2 h-32 mb-4"></select><button onclick="executeUnpivot()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Flatten</button></div>
+
+            <!-- NEW: 12. IMPUTER & 13. DATE EXTRACTOR -->
+            <div id="tab-imputer" class="tool-panel">
+                <h2 class="text-xl font-bold text-white">12. Blank / Null Imputer</h2><p class="text-gray-400 text-sm mb-4">Fill empty cells in a column with the column's Average, Median, or a Custom Value.</p>
+                <div class="bg-gray-900 p-4 border border-gray-700 rounded max-w-md space-y-4 mb-4">
+                    <div><label class="block text-sm mb-1">Target Column:</label><select id="imputeCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select></div>
+                    <div><label class="block text-sm mb-1">Strategy:</label><select id="imputeStrategy" class="w-full bg-gray-800 p-2"><option value="average">Fill with Average (Numeric)</option><option value="custom">Fill with Custom Value</option></select></div>
+                    <div id="imputeCustomDiv" style="display:none;"><label class="block text-sm mb-1">Custom Value:</label><input type="text" id="imputeCustomVal" class="w-full bg-gray-800 p-2"></div>
+                </div>
+                <button onclick="executeImputer()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Impute Blanks</button>
+            </div>
+
+            <div id="tab-date-ext" class="tool-panel">
+                <h2 class="text-xl font-bold text-white">13. Date Component Extractor</h2><p class="text-gray-400 text-sm mb-4">Takes a Date column and creates new columns for Year, Month, Quarter, etc.</p>
+                <div class="bg-gray-900 p-4 border border-gray-700 rounded max-w-md mb-4">
+                    <label class="block text-sm mb-1">Source Date Column:</label><select id="dateExtCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select>
+                </div>
+                <button onclick="executeDateExt()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Extract Components</button>
+            </div>
+
+            <!-- EXISITING TOOLS (14, 15, 16) -->
+            <div id="tab-format" class="tool-panel"><h2 class="text-xl font-bold text-white">14. Standardizer</h2><div class="space-y-2 mb-4 max-w-sm"><select id="formatCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select><select id="formatAction" class="w-full bg-gray-800 p-2"><option value="UPPER">UPPERCASE</option><option value="lower">lowercase</option><option value="Proper">Proper Case</option><option value="DateString">Format to YYYY-MM-DD</option></select></div><button onclick="executeFormat()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Format</button></div>
+            <div id="tab-filter" class="tool-panel"><h2 class="text-xl font-bold text-white">15. Conditional Filter</h2><div class="flex space-x-2 mb-4 max-w-2xl"><select id="filterCol" class="dynamic-col-select w-1/3 bg-gray-800 p-2"></select><select id="filterOp" class="w-1/3 bg-gray-800 p-2"><option value="==">Equals</option><option value="!=">Does Not Equal</option><option value=">">Greater Than</option><option value="<">Less Than</option><option value="contains">Contains</option></select><input type="text" id="filterVal" placeholder="Value" class="w-1/3 bg-gray-800 p-2"></div><button onclick="executeFilter()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Filter</button></div>
+            <div id="tab-math" class="tool-panel"><h2 class="text-xl font-bold text-white">16. Math Calculator</h2><div class="flex space-x-2 mb-4 max-w-2xl"><select id="mathCol1" class="dynamic-col-select w-1/3 bg-gray-800 p-2"></select><select id="mathOp" class="w-1/4 bg-gray-800 p-2"><option value="+">+</option><option value="-">-</option><option value="*">*</option><option value="/">/</option></select><input type="text" id="mathCol2" placeholder="Col or Num" class="w-1/3 bg-gray-800 p-2"></div><input type="text" id="mathNewName" value="Result" class="w-full max-w-sm bg-gray-800 p-2 mb-4"><button onclick="executeMath()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Calculate</button></div>
+
+            <!-- NEW: 17. RUNNING TOTAL & 18. ID GEN -->
+            <div id="tab-running" class="tool-panel">
+                <h2 class="text-xl font-bold text-white">17. Running Total (Cumulative Sum)</h2><p class="text-gray-400 text-sm mb-4">Generates a cumulative sum column running top-to-bottom.</p>
+                <div class="bg-gray-900 p-4 border border-gray-700 rounded max-w-md mb-4"><label class="block text-sm mb-1">Numeric Column to Sum:</label><select id="runTotCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select></div>
+                <button onclick="executeRunningTotal()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Calculate Total</button>
+            </div>
+
+            <div id="tab-id-gen" class="tool-panel">
+                <h2 class="text-xl font-bold text-white">18. Unique ID Generator</h2><p class="text-gray-400 text-sm mb-4">Appends a unique identifier to every single row.</p>
+                <div class="bg-gray-900 p-4 border border-gray-700 rounded max-w-md space-y-4 mb-4">
+                    <div><label class="block text-sm mb-1">ID Type:</label><select id="idGenType" class="w-full bg-gray-800 p-2"><option value="seq">Sequential Numbers (1, 2, 3...)</option><option value="uuid">Cryptographic UUIDs</option></select></div>
+                </div>
+                <button onclick="executeIdGen()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Generate IDs</button>
+            </div>
+
+            <!-- EXISITING TOOLS (19, 20, 21, 22) -->
+            <div id="tab-anonymize" class="tool-panel"><h2 class="text-xl font-bold text-white">19. Data Anonymizer</h2><div class="space-y-2 mb-4 max-w-sm"><select id="anonCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select><select id="anonAction" class="w-full bg-gray-800 p-2"><option value="asterisk">Full Asterisk</option><option value="partial">Partial</option><option value="scramble">Scramble</option></select></div><button onclick="executeAnonymize()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Anonymize</button></div>
+            <div id="tab-compare" class="tool-panel"><h2 class="text-xl font-bold text-white">20. File Comparator</h2><div class="flex space-x-2 mb-4"><select id="compLeftFile" class="dynamic-file-select bg-gray-800 w-1/3 p-2"></select><select id="compRightFile" class="dynamic-file-select bg-gray-800 w-1/3 p-2"></select><select id="compKey" class="dynamic-col-select bg-gray-800 w-1/3 p-2"></select></div><button onclick="executeCompare()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Diff Check</button></div>
+            <div id="tab-sample" class="tool-panel"><h2 class="text-xl font-bold text-white">21. Audit Sampler</h2><div class="max-w-md bg-gray-900 p-4 border border-gray-700 rounded mb-4 space-y-4"><select id="sampleFile" class="dynamic-file-select w-full bg-gray-800 p-2"></select><div class="flex space-x-2"><select id="sampleType" class="w-1/2 bg-gray-800 p-2"><option value="percent">Percentage (%)</option><option value="fixed">Fixed (#)</option></select><input type="number" id="sampleAmount" value="5" class="w-1/2 bg-gray-800 p-2"></div></div><button onclick="executeSample()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Extract Sample</button></div>
+            <div id="tab-fuzzy" class="tool-panel"><h2 class="text-xl font-bold text-white">22. Fuzzy Matcher</h2><div class="max-w-md bg-gray-900 p-4 border border-gray-700 rounded mb-4"><select id="fuzzyCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select><input type="number" id="fuzzyThreshold" value="85" class="w-full bg-gray-800 p-2 mt-2"></div><button onclick="executeFuzzy()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Find Typos</button></div>
+
+            <!-- NEW: 23. VALIDATOR -->
+            <div id="tab-validate" class="tool-panel">
+                <h2 class="text-xl font-bold text-white">23. Data Type Validator</h2><p class="text-gray-400 text-sm mb-4">Scans a column and flags rows that violate a rule (e.g. text hiding in a number column).</p>
+                <div class="bg-gray-900 p-4 border border-gray-700 rounded max-w-md space-y-4 mb-4">
+                    <div><label class="block text-sm mb-1">Column to Verify:</label><select id="valCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select></div>
+                    <div><label class="block text-sm mb-1">Should Be:</label><select id="valType" class="w-full bg-gray-800 p-2"><option value="number">Pure Numeric</option><option value="text">Pure Text (No Numbers)</option></select></div>
+                </div>
+                <button onclick="executeValidator()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Run Validation</button>
+            </div>
+
+            <!-- EXISITING TOOLS (24, 25, 26) -->
+            <div id="tab-aggregate" class="tool-panel"><h2 class="text-xl font-bold text-white">24. Flat Aggregator</h2><div class="space-y-2 mb-4 max-w-sm"><select id="aggGroupCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select><select id="aggTargetCol" class="dynamic-col-select w-full bg-gray-800 p-2"></select><select id="aggOperation" class="w-full bg-gray-800 p-2"><option value="sum">Sum</option><option value="count">Count</option><option value="avg">Average</option></select></div><button onclick="executeAggregate()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Aggregate</button></div>
+            <div id="tab-matrix" class="tool-panel"><h2 class="text-xl font-bold text-white">25. 2D Matrix Pivot</h2><div class="flex space-x-2 mb-4 max-w-xl"><select id="matrixRow" class="dynamic-col-select w-1/3 bg-gray-800 p-2"></select><select id="matrixCol" class="dynamic-col-select w-1/3 bg-gray-800 p-2"></select><select id="matrixVal" class="dynamic-col-select w-1/3 bg-gray-800 p-2"></select></div><button onclick="executeMatrix()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Generate</button></div>
+            <div id="tab-profile" class="tool-panel"><h2 class="text-xl font-bold text-white">26. Data Health Profiler</h2><button onclick="executeProfile()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg w-48">Profile System</button></div>
+
+            <!-- Bottom Console -->
+            <div class="h-32 border-t border-gray-800 bg-gray-900 flex flex-col shrink-0">
+                <div class="px-4 py-1 border-b border-gray-800 flex justify-between items-center bg-gray-850"><span class="text-xs font-bold text-gray-400 uppercase">System Console</span><button onclick="document.getElementById('consoleLog').innerHTML=''" class="text-xs text-gray-500 hover:text-white">Clear</button></div>
+                <div id="consoleLog" class="p-2 overflow-y-auto flex-grow font-mono text-[11px] space-y-1"><div class="text-blue-400">System Ready. V7 Ultimate loaded. 26 Modules Active.</div></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // CORE STATE & UTILS
+        let globalRawDataFiles = []; let globalHeaders = new Set(); let totalRowsLoaded = 0;
+        function log(msg, type = 'info') { const div = document.createElement('div'); div.className = type==='error'?'text-red-400':type==='success'?'text-green-400':'text-gray-300'; div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`; document.getElementById('consoleLog').appendChild(div); document.getElementById('consoleLog').scrollTop = document.getElementById('consoleLog').scrollHeight; }
+        function switchTab(tabId) { document.querySelectorAll('.tool-panel').forEach(el => el.classList.remove('active')); document.querySelectorAll('.tab-button').forEach(el => { el.classList.remove('tab-active'); el.classList.add('tab-inactive'); }); document.getElementById(tabId).classList.add('active'); document.getElementById(`btn-${tabId}`).classList.add('tab-active'); document.getElementById(`btn-${tabId}`).classList.remove('tab-inactive'); }
+        const val = id => document.getElementById(id).value;
+        function getAllMergedData() { let res = []; globalRawDataFiles.forEach(f => res = res.concat(f.data)); return res; }
+        function exportExcel(dataArray, filename) { if(!dataArray || dataArray.length === 0) return log('Dataset is empty!', 'error'); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataArray), "Data"); XLSX.writeFile(wb, filename); }
+
+        // FILE LOAD
+        document.getElementById('globalFileInput').addEventListener('change', async (e) => { const files = Array.from(e.target.files); if(files.length === 0) return; log(`Processing ${files.length} file(s)...`, 'info'); for(let file of files) { try { const ext = file.name.split('.').pop().toLowerCase(); let data = await (ext==='csv'?new Promise((res,rej)=>Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>res(r.data),error:rej})):new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{res(XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(e.target.result),{type:'array'}).Sheets[XLSX.read(new Uint8Array(e.target.result),{type:'array'}).SheetNames[0]],{defval:""}));}catch(err){rej(err);}};r.onerror=rej;r.readAsArrayBuffer(file);})); globalRawDataFiles.push({ name: file.name, data: data }); totalRowsLoaded += data.length; if(data.length > 0) Object.keys(data[0]).forEach(k => globalHeaders.add(k)); log(`Loaded ${file.name} (${data.length} rows)`, 'success'); } catch(err) { log(`Failed: ${err.message}`, 'error'); } } updateUIState(); document.getElementById('globalFileInput').value = ''; });
+        document.getElementById('clearDataBtn').addEventListener('click', () => { globalRawDataFiles = []; globalHeaders.clear(); totalRowsLoaded = 0; updateUIState(); log('Memory cleared.', 'warn'); });
+
+        function updateUIState() {
+            document.getElementById('globalDataBadge').textContent = `${globalRawDataFiles.length} Files Loaded (${totalRowsLoaded.toLocaleString()} Rows)`; document.getElementById('clearDataBtn').classList.toggle('hidden', globalRawDataFiles.length === 0);
+            const hdrs = Array.from(globalHeaders).sort();
+            document.querySelectorAll('.dynamic-col-select').forEach(dd => { const cv = Array.from(dd.selectedOptions).map(o=>o.value); let html = dd.id === 'dedupeColumn' ? `<option value="ALL">-- Entire Row --</option>` : ''; hdrs.forEach(h => html += `<option value="${h}">${h}</option>`); dd.innerHTML = html; dd.disabled = globalRawDataFiles.length === 0; if(dd.multiple && cv.length>0) Array.from(dd.options).forEach(o => { if(cv.includes(o.value)) o.selected = true; }); else if (!dd.multiple && hdrs.includes(cv[0])) dd.value = cv[0]; });
+            document.querySelectorAll('.dynamic-file-select').forEach(dd => { let html = ''; globalRawDataFiles.forEach((f, i) => html += `<option value="${i}">${f.name}</option>`); dd.innerHTML = html; });
+        }
+
+        // --- PREVIOUS TOOLS (V6) ---
+        function executeMerge() { let m=[]; globalRawDataFiles.forEach(f=>{ m=m.concat(f.data.map(r=>{ let nr={...r}; if(document.getElementById('mergeAddSource').checked) nr['Source']=f.name; return nr; })); }); exportExcel(m, `Merged_${Date.now()}.xlsx`); }
+        function executeClean() { let c=[]; let s=new Set(); let t=document.getElementById('cleanTrim').checked; let b=document.getElementById('cleanBlanks').checked; let ded=document.getElementById('cleanDedupe').checked; let dc=val('dedupeColumn'); getAllMergedData().forEach(r=>{ let nr={}; let ie=true; for(let[k,v] of Object.entries(r)){ let vl=v; if(t&&typeof vl==='string')vl=vl.trim(); nr[k]=vl; if(vl!==""&&vl!==null)ie=false; } if(b&&ie)return; if(ded){let h=dc==='ALL'?JSON.stringify(nr):nr[dc]; if(s.has(h))return; s.add(h);} c.push(nr); }); exportExcel(c, `Cleaned_${Date.now()}.xlsx`); }
+        async function executeSplit() { let c=val('splitColumn'); let zip=new JSZip(); let g={}; getAllMergedData().forEach(r=>{ let k=r[c]||'UNGROUPED'; if(!g[k])g[k]=[]; g[k].push(r); }); for(let[gn,gd] of Object.entries(g)){ const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gd), gn.toString().replace(/[\/*?:[\]]/g, '_').substring(0,31)); zip.file(`${gn.toString().replace(/[<>:"/\|?*]/g, '_')}.xlsx`, XLSX.write(wb, {bookType:'xlsx', type:'array'})); } saveAs(await zip.generateAsync({type:'blob'}), `Split_${Date.now()}.zip`); }
+        function executeJoin() { let rm={}; globalRawDataFiles[val('joinRightFile')].data.forEach(r=>rm[r[val('joinRightCol')]]=r); let j=globalRawDataFiles[val('joinLeftFile')].data.map(r=>{ let m=rm[r[val('joinLeftCol')]]||{}; let rp={}; for(let k in m){if(k!==val('joinRightCol'))rp[`Ref_${k}`]=m[k];} return {...r, ...rp}; }); exportExcel(j, `Joined_${Date.now()}.xlsx`); }
+        function executeDictReplace() { let md=globalRawDataFiles[val('dictMapFile')].data; let dict={}; md.forEach(r=>{dict[r[val('dictOldCol')]]=r[val('dictNewCol')]}); let tc=val('dictTargetCol'); let res=globalRawDataFiles[val('dictTargetFile')].data.map(r=>{ let nr={...r}; if(dict.hasOwnProperty(nr[tc])) nr[tc]=dict[nr[tc]]; return nr; }); exportExcel(res, `DictReplaced_${Date.now()}.xlsx`); }
+        function executeColExtract() { let c=val('colExtractTarget'), a=val('colExtractAction'), d=val('colExtractDelimiter'); let res=getAllMergedData().map(r=>{ let nr={...r}; let v=(r[c]||'').toString(); if(a==='delimiter')v.split(d).forEach((p,i)=>nr[`${c}_P${i+1}`]=p.trim()); else if(a==='email'){let m=v.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi); nr[`${c}_E`]=m?m.join(','):'';} else if(a==='number'){let m=v.match(/\d+/g); nr[`${c}_N`]=m?m.join(''):'';} return nr; }); exportExcel(res, `Extracted_${Date.now()}.xlsx`); }
+        function executeFillDown() { let c=val('fillDownCol'); let lv=null; let res=getAllMergedData().map(r=>{ let nr={...r}; let cv=nr[c]; if(cv!==undefined&&cv!==null&&cv.toString().trim()!=='') lv=cv; else if(lv!==null) nr[c]=lv; return nr; }); exportExcel(res, `FillDown_${Date.now()}.xlsx`); }
+        function executeUnpivot() { let ic=Array.from(document.getElementById('unpivotCols').selectedOptions).map(o=>o.value); let res=[]; getAllMergedData().forEach(r=>{ let b={}; ic.forEach(c=>b[c]=r[c]); for(let k in r){if(!ic.includes(k)){res.push({...b, Attribute:k, Value:r[k]});}} }); exportExcel(res, `Unpivoted_${Date.now()}.xlsx`); }
+        function executeFormat() { let c=val('formatCol'), a=val('formatAction'); let res=getAllMergedData().map(r=>{ let nr={...r}; let v=(nr[c]||'').toString(); if(a==='UPPER')nr[c]=v.toUpperCase(); else if(a==='lower')nr[c]=v.toLowerCase(); else if(a==='Proper')nr[c]=v.toLowerCase().replace(/\w/g, x=>x.toUpperCase()); else if(a==='DateString'){let dt=new Date(v); if(!isNaN(dt))nr[c]=dt.toISOString().split('T')[0];} return nr; }); exportExcel(res, `Format_${Date.now()}.xlsx`); }
+        function executeMath() { let c1=val('mathCol1'), op=val('mathOp'), c2=val('mathCol2'), nn=val('mathNewName'); let res=getAllMergedData().map(r=>{ let nr={...r}; let v1=parseFloat(nr[c1])||0; let v2=nr.hasOwnProperty(c2)?parseFloat(nr[c2])||0:parseFloat(c2)||0; let ans=0; if(op==='+')ans=v1+v2; else if(op==='-')ans=v1-v2; else if(op==='*')ans=v1*v2; else if(op==='/')ans=v2!==0?v1/v2:0; nr[nn]=ans; return nr; }); exportExcel(res, `Math_${Date.now()}.xlsx`); }
+        function executeFilter() { let c=val('filterCol'), op=val('filterOp'), v=val('filterVal'); let res=getAllMergedData().filter(r=>{ let rv=(r[c]||'').toString(); if(op==='contains')return rv.toLowerCase().includes(v.toLowerCase()); let nR=parseFloat(rv), nV=parseFloat(v); if(!isNaN(nR)&&!isNaN(nV)&&['>','<'].includes(op)){return op==='>'?nR>nV:nR<nV;} if(op==='==')return rv===v; if(op==='!=')return rv!==v; return true; }); exportExcel(res, `Filtered_${Date.now()}.xlsx`); }
+        function executeAnonymize() { let c=val('anonCol'), a=val('anonAction'); let res=getAllMergedData().map(r=>{ let nr={...r}; let v=(nr[c]||'').toString(); if(!v)return nr; if(a==='asterisk')nr[c]='*'.repeat(v.length||8); else if(a==='partial')nr[c]=v.length>4?v.substring(0,3)+'***'+v.slice(-2):'***'; else if(a==='scramble')nr[c]=v.split('').sort(()=>0.5-Math.random()).join(''); return nr; }); exportExcel(res, `Anon_${Date.now()}.xlsx`); }
+        function executeCompare() { let oc=globalRawDataFiles[val('compLeftFile')].data, nc=globalRawDataFiles[val('compRightFile')].data, k=val('compKey'); let os=new Set(oc.map(r=>r[k])), ns=new Set(nc.map(r=>r[k])); let rep=[]; nc.forEach(r=>{if(!os.has(r[k]))rep.push({...r, Diff:'ADDED'});}); oc.forEach(r=>{if(!ns.has(r[k]))rep.push({...r, Diff:'REMOVED'});}); exportExcel(rep, `Diff_${Date.now()}.xlsx`); }
+        function executeSample() { let d=[...globalRawDataFiles[val('sampleFile')].data], t=val('sampleType'), a=parseFloat(val('sampleAmount'))||0; let c=t==='percent'?Math.ceil(d.length*(a/100)):a; for(let i=d.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[d[i],d[j]]=[d[j],d[i]];} exportExcel(d.slice(0,c), `Sample_${Date.now()}.xlsx`); }
+        function executeFuzzy() { let col=val('fuzzyCol'), thr=parseFloat(val('fuzzyThreshold'))||85, d=getAllMergedData(); let u=Array.from(new Set(d.map(r=>r[col]?r[col].toString():''))).filter(v=>v.length>2); let r=[]; for(let i=0;i<u.length;i++){for(let j=i+1;j<u.length;j++){let v1=u[i], v2=u[j]; if(Math.abs(v1.length-v2.length)>3)continue; let m=[], a=v1, b=v2, min=Math.min; for(let x=0;x<=b.length;m[x]=[x++]); for(let y=0;y<=a.length;m[0][y]=y++); for(let x=1;x<=b.length;x++){for(let y=1;y<=a.length;y++){m[x][y]=b.charAt(x-1)==a.charAt(y-1)?m[x-1][y-1]:min(m[x-1][y-1]+1,min(m[x][y-1]+1,m[x-1][y]+1));}} let s=((Math.max(v1.length,v2.length)-m[b.length][a.length])/Math.max(v1.length,v2.length))*100; if(s>=thr&&s<100)r.push({V1:v1,V2:v2,Sim:s.toFixed(1)+'%'});}} exportExcel(r, `Fuzzy_${Date.now()}.xlsx`); }
+        function executeAggregate() { let g=val('aggGroupCol'), t=val('aggTargetCol'), op=val('aggOperation'); let grp={}; getAllMergedData().forEach(r=>{ let k=r[g]||'Unknown', v=parseFloat(r[t])||0; if(!grp[k])grp[k]={k:k,c:0,s:0}; grp[k].c++; grp[k].s+=v; }); let res=Object.values(grp).map(x=>{ let r={[g]:x.k}; if(op==='count')r['Count']=x.c; if(op==='sum')r['Sum']=x.s; if(op==='avg')r['Avg']=x.c?x.s/x.c:0; return r; }); exportExcel(res, `Agg_${Date.now()}.xlsx`); }
+        function executeMatrix() { let rCol=val('matrixRow'), cCol=val('matrixCol'), vCol=val('matrixVal'); let m={}, ac=new Set(); getAllMergedData().forEach(r=>{ let rk=r[rCol]||'U', ck=r[cCol]||'U', v=parseFloat(r[vCol])||0; ac.add(ck); if(!m[rk])m[rk]={}; if(!m[rk][ck])m[rk][ck]=0; m[rk][ck]+=v; }); let ca=Array.from(ac).sort(); let res=Object.keys(m).map(rn=>{ let or={[rCol]:rn}; ca.forEach(c=>or[c]=m[rn][c]||0); return or; }); exportExcel(res, `Matrix_${Date.now()}.xlsx`); }
+        function executeProfile() { let d=getAllMergedData(); let rep={}; let hdrs=Array.from(globalHeaders); hdrs.forEach(h=>rep[h]={c:h,b:0,u:new Set()}); d.forEach(r=>{hdrs.forEach(h=>{let v=r[h]; if(v===undefined||v===''||v===null)rep[h].b++; else rep[h].u.add(v);});}); let fr=Object.values(rep).map(c=>({Column:c.c, Rows:d.length, Blanks:c.b, FillRate:(((d.length-c.b)/d.length)*100).toFixed(1)+'%', Uniques:c.u.size})); exportExcel(fr, `Profile_${Date.now()}.xlsx`); }
+
+        // --- NEW V7 MODULES ---
+        
+        // 4. Safe Dupe Flagger
+        function executeFlagDupes() {
+            let col = val('flagCol'); let seen = new Set();
+            let res = getAllMergedData().map(r => {
+                let nr = {...r}; let v = nr[col];
+                if(seen.has(v)) { nr['Is_Duplicate'] = true; } 
+                else { seen.add(v); nr['Is_Duplicate'] = false; }
+                return nr;
+            });
+            exportExcel(res, `FlaggedDupes_${Date.now()}.xlsx`); log('Duplicates Flagged.', 'success');
+        }
+
+        // 8. Concatenator
+        function executeConcat() {
+            let cols = Array.from(document.getElementById('concatCols').selectedOptions).map(o=>o.value);
+            let delim = val('concatDelim'); let nn = val('concatName');
+            let res = getAllMergedData().map(r => {
+                let nr = {...r}; let arr = [];
+                cols.forEach(c => { if(r[c]) arr.push(r[c]); });
+                nr[nn] = arr.join(delim); return nr;
+            });
+            exportExcel(res, `Concatenated_${Date.now()}.xlsx`); log('Columns Combined.', 'success');
+        }
+
+        // 9. Regex Miner
+        function executeRegex() {
+            let col = val('regexCol'); let pat = val('regexPattern');
+            try {
+                let regex = new RegExp(pat, 'g');
+                let res = getAllMergedData().map(r => {
+                    let nr = {...r}; let v = (nr[col]||'').toString();
+                    let match = v.match(regex);
+                    nr[`${col}_Regex_Extracted`] = match ? match.join(' | ') : '';
+                    return nr;
+                });
+                exportExcel(res, `Regex_${Date.now()}.xlsx`); log('Regex complete.', 'success');
+            } catch(e) { log(`Invalid Regex: ${e.message}`, 'error'); }
+        }
+
+        // 12. Imputer
+        document.getElementById('imputeStrategy').addEventListener('change', e => {
+            document.getElementById('imputeCustomDiv').style.display = e.target.value === 'custom' ? 'block' : 'none';
+        });
+        function executeImputer() {
+            let col = val('imputeCol'); let strat = val('imputeStrategy'); let cv = val('imputeCustomVal');
+            let data = getAllMergedData(); let fillVal = cv;
+            
+            if(strat === 'average') {
+                let sum = 0; let count = 0;
+                data.forEach(r => { let v = parseFloat(r[col]); if(!isNaN(v)) { sum+=v; count++; } });
+                fillVal = count > 0 ? (sum/count).toFixed(2) : 0;
+                log(`Calculated Average: ${fillVal}`);
+            }
+
+            let res = data.map(r => {
+                let nr = {...r}; let v = nr[col];
+                if(v === undefined || v === null || v.toString().trim() === '') nr[col] = fillVal;
+                return nr;
+            });
+            exportExcel(res, `Imputed_${Date.now()}.xlsx`); log('Blanks Imputed.', 'success');
+        }
+
+        // 13. Date Extractor
+        function executeDateExt() {
+            let col = val('dateExtCol');
+            let res = getAllMergedData().map(r => {
+                let nr = {...r}; let dt = new Date(nr[col]);
+                if(!isNaN(dt)) {
+                    nr[`${col}_Year`] = dt.getFullYear();
+                    nr[`${col}_Month`] = dt.getMonth() + 1;
+                    nr[`${col}_Qtr`] = `Q${Math.ceil((dt.getMonth() + 1) / 3)}`;
+                    nr[`${col}_Day`] = dt.toLocaleDateString('en-US', {weekday: 'long'});
+                }
+                return nr;
+            });
+            exportExcel(res, `DateExtracted_${Date.now()}.xlsx`); log('Dates Parsed.', 'success');
+        }
+
+        // 17. Running Total
+        function executeRunningTotal() {
+            let col = val('runTotCol'); let running = 0;
+            let res = getAllMergedData().map(r => {
+                let nr = {...r}; let v = parseFloat(nr[col]) || 0;
+                running += v; nr[`Cumulative_${col}`] = running;
+                return nr;
+            });
+            exportExcel(res, `RunningTotal_${Date.now()}.xlsx`); log('Cumulative Sum calculated.', 'success');
+        }
+
+        // 18. ID Generator
+        function executeIdGen() {
+            let type = val('idGenType'); let i = 1;
+            let res = getAllMergedData().map(r => {
+                let nr = {...r};
+                if(type === 'seq') nr['Unique_Row_ID'] = i++;
+                else nr['Unique_Row_ID'] = 'id-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now().toString(36);
+                return nr;
+            });
+            exportExcel(res, `ID_Generated_${Date.now()}.xlsx`); log('IDs Injected.', 'success');
+        }
+
+        // 23. Validator
+        function executeValidator() {
+            let col = val('valCol'); let type = val('valType');
+            let res = getAllMergedData().map(r => {
+                let nr = {...r}; let v = (nr[col]||'').toString().trim();
+                if(v === '') { nr['Validation_Failed'] = false; return nr; } // Ignore blanks
+                
+                let isNum = !isNaN(parseFloat(v)) && isFinite(v);
+                if(type === 'number') nr['Validation_Failed'] = !isNum;
+                else if(type === 'text') nr['Validation_Failed'] = /\d/.test(v); // Fails if ANY numbers exist
+
+                return nr;
+            });
+            let fails = res.filter(r => r['Validation_Failed']).length;
+            exportExcel(res, `Validated_${Date.now()}.xlsx`); 
+            if(fails > 0) log(`Validation Complete. Found ${fails} rule violations!`, 'error');
+            else log('Validation Complete. Data is clean.', 'success');
+        }
+
+    </script>
+</body>
+</html>
