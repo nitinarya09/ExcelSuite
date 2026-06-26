@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Pro Data Studio - V11 Universal Edition</title>
+    <title>Excel Pro Data Studio - 1.0 Universal Edition</title>
     
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -128,7 +128,7 @@
             <div>
                 <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center">
                     Excel Pro Data Studio
-                    <span class="text-[10px] bg-indigo-600/30 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 rounded-full px-2 py-0.5 ml-2 font-mono font-semibold">V11.0 Universal</span>
+                    <span class="text-[10px] bg-indigo-600/30 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 rounded-full px-2 py-0.5 ml-2 font-mono font-semibold">1.0 Universal</span>
                 </h1>
                 <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">In-Memory Multi-Format Workspace Engine</p>
             </div>
@@ -1132,7 +1132,7 @@
                     <button onclick="clearConsoleLogs()" class="text-[10px] font-semibold text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200 transition">Clear Console</button>
                 </div>
                 <div id="consoleLog" class="p-2.5 overflow-y-auto flex-grow font-mono text-[10px] space-y-1 bg-slate-50 dark:bg-slate-950/80">
-                    <div class="text-indigo-600 dark:text-indigo-400 font-bold">[SYSTEM] Workspace engine ready. Supporting Excel, CSV, TSV, ODS & raw delimited text files.</div>
+                    <div class="text-indigo-600 dark:text-indigo-400 font-bold">[SYSTEM] Workspace engine ready. Version 1.0 loaded. Supporting Excel, CSV, TSV, ODS & raw delimited text files.</div>
                 </div>
             </div>
         </main>
@@ -1164,6 +1164,20 @@
         </div>
     </div>
 
+    <!-- Global Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-slate-950/70 dark:bg-slate-950/70 flex flex-col items-center justify-center hidden z-50 p-4 backdrop-blur-sm transition-opacity duration-200">
+        <div class="glass-panel w-full max-w-xs rounded-xl p-5 text-slate-800 dark:text-slate-200 space-y-4 animate-fade-in shadow-2xl border border-indigo-500/20 text-center flex flex-col items-center animate-fade-in">
+            <div class="relative flex items-center justify-center">
+                <div class="w-12 h-12 rounded-full border-4 border-indigo-600/20 border-t-indigo-600 animate-spin"></div>
+                <i data-lucide="refresh-cw" class="w-5 h-5 text-indigo-600 dark:text-indigo-400 animate-pulse absolute"></i>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-slate-900 dark:text-white" id="loadingTitle">Processing File</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" id="loadingStatus">Parsing dataset. Please wait...</p>
+            </div>
+        </div>
+    </div>
+
     <!-- CORE SCRIPTS & WORKSPACE SYSTEM -->
     <script>
         // --- 1. GLOBALS & WORKSPACE STATE ---
@@ -1185,6 +1199,32 @@
         // Modal state variables for Excel sheet uploads
         let currentWorkbookSheets = {};
         let currentWorkbookFileName = "";
+
+        // Active Ingestion Loader Counters & Actions
+        let activeParsesCount = 0;
+        function showLoading(title, status) {
+            document.getElementById('loadingTitle').textContent = title;
+            document.getElementById('loadingStatus').textContent = status;
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+        function hideLoading() {
+            if (activeParsesCount <= 0) {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }
+        }
+        function runOperationWithLoading(title, statusMsg, operationFn) {
+            showLoading(title, statusMsg);
+            setTimeout(() => {
+                try {
+                    operationFn();
+                } catch (err) {
+                    log(`Operation failed: ${err.message}`, 'error');
+                    console.error(err);
+                } finally {
+                    hideLoading();
+                }
+            }, 50);
+        }
 
         // Initialize Workspace & Theme
         document.addEventListener('DOMContentLoaded', () => {
@@ -1256,65 +1296,90 @@
         });
 
         // --- 2. FILE INGESTION LOGIC ---
-        document.getElementById('globalFileInput').addEventListener('change', async (e) => {
+        document.getElementById('globalFileInput').addEventListener('change', (e) => {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
+            
+            activeParsesCount = files.length;
+            showLoading("Ingesting Files", `Parsing ${files.length} selected file(s)...`);
             log(`Parsing ${files.length} selected file(s)...`, 'system');
             
-            for (let file of files) {
-                try {
-                    const ext = file.name.split('.').pop().toLowerCase();
-                    const encoding = document.getElementById('txtEncoding').value;
-                    const delimVal = document.getElementById('txtDelimiter').value;
-                    
-                    if (['csv', 'tsv', 'txt'].includes(ext)) {
-                        let delimiter = delimVal === 'auto' ? "" : delimVal;
+            // Wrap in a setTimeout to give DOM time to render the loading overlay
+            setTimeout(async () => {
+                for (let file of files) {
+                    try {
+                        const ext = file.name.split('.').pop().toLowerCase();
+                        const encoding = document.getElementById('txtEncoding').value;
+                        const delimVal = document.getElementById('txtDelimiter').value;
                         
-                        Papa.parse(file, {
-                            header: true,
-                            skipEmptyLines: true,
-                            encoding: encoding,
-                            delimiter: delimiter,
-                            complete: (res) => {
-                                addTableToWorkspace(file.name, res.data);
-                                log(`Loaded delimited text table: "${file.name}" with ${res.data.length} rows.`, 'success');
-                            },
-                            error: (err) => {
-                                log(`Failed to parse text file "${file.name}": ${err.message}`, 'error');
-                            }
-                        });
-                    } else {
-                        // Spreadsheet formats (xlsx, xls, ods, etc)
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                            try {
-                                const raw = new Uint8Array(ev.target.result);
-                                const wb = XLSX.read(raw, { type: 'array' });
-                                
-                                if (wb.SheetNames.length > 1) {
-                                    // Multiple sheets detected, trigger sheet importer modal
-                                    currentWorkbookSheets = {};
-                                    currentWorkbookFileName = file.name;
-                                    wb.SheetNames.forEach(sheetName => {
-                                        currentWorkbookSheets[sheetName] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
-                                    });
-                                    openSheetModal(wb.SheetNames);
-                                } else {
-                                    // Single sheet excel
-                                    const sheetData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
-                                    addTableToWorkspace(`${file.name} - ${wb.SheetNames[0]}`, sheetData);
-                                    log(`Loaded sheet "${wb.SheetNames[0]}" from ${file.name} (${sheetData.length} rows)`, 'success');
+                        if (['csv', 'tsv', 'txt'].includes(ext)) {
+                            let delimiter = delimVal === 'auto' ? "" : delimVal;
+                            
+                            Papa.parse(file, {
+                                header: true,
+                                skipEmptyLines: true,
+                                encoding: encoding,
+                                delimiter: delimiter,
+                                complete: (res) => {
+                                    addTableToWorkspace(file.name, res.data);
+                                    log(`Loaded delimited text table: "${file.name}" with ${res.data.length} rows.`, 'success');
+                                    activeParsesCount--;
+                                    hideLoading();
+                                },
+                                error: (err) => {
+                                    log(`Failed to parse text file "${file.name}": ${err.message}`, 'error');
+                                    activeParsesCount--;
+                                    hideLoading();
                                 }
-                            } catch (err) {
-                                log(`SheetJS failed parsing "${file.name}": ${err.message}`, 'error');
-                            }
-                        };
-                        reader.readAsArrayBuffer(file);
+                            });
+                        } else {
+                            // Spreadsheet formats (xlsx, xls, ods, etc)
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                showLoading("Parsing Spreadsheet", `Reading sheets from ${file.name}...`);
+                                setTimeout(() => {
+                                    try {
+                                        const raw = new Uint8Array(ev.target.result);
+                                        const wb = XLSX.read(raw, { type: 'array' });
+                                        
+                                        if (wb.SheetNames.length > 1) {
+                                            // Multiple sheets detected, trigger sheet importer modal
+                                            currentWorkbookSheets = {};
+                                            currentWorkbookFileName = file.name;
+                                            wb.SheetNames.forEach(sheetName => {
+                                                currentWorkbookSheets[sheetName] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: "" });
+                                            });
+                                            activeParsesCount--;
+                                            hideLoading();
+                                            openSheetModal(wb.SheetNames);
+                                        } else {
+                                            // Single sheet excel
+                                            const sheetData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+                                            addTableToWorkspace(`${file.name} - ${wb.SheetNames[0]}`, sheetData);
+                                            log(`Loaded sheet "${wb.SheetNames[0]}" from ${file.name} (${sheetData.length} rows)`, 'success');
+                                            activeParsesCount--;
+                                            hideLoading();
+                                        }
+                                    } catch (err) {
+                                        log(`SheetJS failed parsing "${file.name}": ${err.message}`, 'error');
+                                        activeParsesCount--;
+                                        hideLoading();
+                                    }
+                                }, 50);
+                            };
+                            reader.onerror = () => {
+                                activeParsesCount--;
+                                hideLoading();
+                            };
+                            reader.readAsArrayBuffer(file);
+                        }
+                    } catch (err) {
+                        log(`Failed parsing "${file.name}": ${err.message}`, 'error');
+                        activeParsesCount--;
+                        hideLoading();
                     }
-                } catch (err) {
-                    log(`Failed parsing "${file.name}": ${err.message}`, 'error');
                 }
-            }
+            }, 50);
             e.target.value = ''; // Reset input
         });
 
@@ -1364,44 +1429,59 @@
                 }
                 
                 const strategy = document.querySelector('input[name="sheetImportStrategy"]:checked').value;
-                log(`Importing selected sheets using "${strategy}" strategy...`, 'system');
                 
-                if (strategy === 'separate') {
-                    checkedBoxes.forEach(sheetName => {
-                        const sheetData = currentWorkbookSheets[sheetName];
-                        if (!sheetData) {
-                            throw new Error(`Sheet data for "${sheetName}" is missing in memory.`);
-                        }
-                        addTableToWorkspace(`${currentWorkbookFileName} - ${sheetName}`, sheetData);
-                        log(`Imported "${sheetName}" sheet as separate workspace table.`, 'success');
-                    });
-                } else {
-                    // Merge strategies
-                    let mergedData = [];
-                    checkedBoxes.forEach(sheetName => {
-                        const sheetData = currentWorkbookSheets[sheetName];
-                        if (!sheetData) {
-                            throw new Error(`Sheet data for "${sheetName}" is missing in memory.`);
-                        }
+                // Show loading before starting import
+                showLoading("Importing Sheets", `Processing and loading ${checkedBoxes.length} sheet(s)...`);
+                
+                // Use setTimeout to allow the loader to render before thread-blocking merge
+                setTimeout(() => {
+                    try {
+                        log(`Importing selected sheets using "${strategy}" strategy...`, 'system');
                         
-                        const data = sheetData.map(row => {
-                            if (typeof row !== 'object' || row === null) {
-                                return { 'Value': row, 'Import_Sheet_Source': sheetName };
-                            }
-                            return {
-                                ...row,
-                                'Import_Sheet_Source': sheetName
-                            };
-                        });
-                        mergedData = mergedData.concat(data);
-                    });
-                    addTableToWorkspace(`${currentWorkbookFileName} [Merged Sheets]`, mergedData);
-                    log(`Merged and imported ${checkedBoxes.length} sheets stacked into a single table.`, 'success');
-                }
-                closeSheetModal();
+                        if (strategy === 'separate') {
+                            checkedBoxes.forEach(sheetName => {
+                                const sheetData = currentWorkbookSheets[sheetName];
+                                if (!sheetData) {
+                                    throw new Error(`Sheet data for "${sheetName}" is missing in memory.`);
+                                }
+                                addTableToWorkspace(`${currentWorkbookFileName} - ${sheetName}`, sheetData);
+                                log(`Imported "${sheetName}" sheet as separate workspace table.`, 'success');
+                            });
+                        } else {
+                            // Merge strategies
+                            let mergedData = [];
+                            checkedBoxes.forEach(sheetName => {
+                                const sheetData = currentWorkbookSheets[sheetName];
+                                if (!sheetData) {
+                                    throw new Error(`Sheet data for "${sheetName}" is missing in memory.`);
+                                }
+                                
+                                const data = sheetData.map(row => {
+                                    if (typeof row !== 'object' || row === null) {
+                                        return { 'Value': row, 'Import_Sheet_Source': sheetName };
+                                    }
+                                    return {
+                                        ...row,
+                                        'Import_Sheet_Source': sheetName
+                                    };
+                                });
+                                mergedData = mergedData.concat(data);
+                            });
+                            addTableToWorkspace(`${currentWorkbookFileName} [Merged Sheets]`, mergedData);
+                            log(`Merged and imported ${checkedBoxes.length} sheets stacked into a single table.`, 'success');
+                        }
+                    } catch (err) {
+                        log(`Failed sheet import: ${err.message}`, 'error');
+                        console.error(err);
+                    } finally {
+                        closeSheetModal();
+                        hideLoading();
+                    }
+                }, 50);
             } catch (err) {
                 log(`Failed sheet import: ${err.message}`, 'error');
                 console.error(err);
+                hideLoading();
             }
         }
 
@@ -2127,20 +2207,22 @@
         function executeMerge() {
             if (workspace.tables.length < 2) return log('Smart Merger requires at least 2 loaded tables in the workspace.', 'warn');
             
-            log('Sticking tables in-memory...', 'system');
-            let merged = [];
-            const addSource = document.getElementById('mergeAddSource').checked;
-            
-            workspace.tables.forEach(t => {
-                t.data.forEach(row => {
-                    const clone = { ...row };
-                    if (addSource) clone['Source_File'] = t.name;
-                    merged.push(clone);
+            runOperationWithLoading("Merging Tables", "Sticking tables together in-memory...", () => {
+                log('Sticking tables in-memory...', 'system');
+                let merged = [];
+                const addSource = document.getElementById('mergeAddSource').checked;
+                
+                workspace.tables.forEach(t => {
+                    t.data.forEach(row => {
+                        const clone = { ...row };
+                        if (addSource) clone['Source_File'] = t.name;
+                        merged.push(clone);
+                    });
                 });
+                
+                addTableToWorkspace(`Merged_Workspace_${Date.now()}`, merged);
+                log(`Success: Merged tables stacked. Added new workspace table.`, 'success');
             });
-            
-            addTableToWorkspace(`Merged_Workspace_${Date.now()}`, merged);
-            log(`Success: Merged tables stacked. Added new workspace table.`, 'success');
         }
         
         // 2. Cleaner & Dedupe
@@ -2148,48 +2230,50 @@
             const table = getActiveTable();
             if (!table) return log('Workspace has no active table.', 'error');
             
-            const trim = document.getElementById('cleanTrim').checked;
-            const removeBlanks = document.getElementById('cleanBlanks').checked;
-            const dedupe = document.getElementById('cleanDedupe').checked;
-            const dedupeCol = document.getElementById('dedupeColumn').value;
-            
-            let sanitized = [];
-            let seen = new Set();
-            let removedBlanksCount = 0;
-            let removedDuplicatesCount = 0;
-            
-            table.data.forEach(r => {
-                let newRow = {};
-                let isRowBlank = true;
+            runOperationWithLoading("Cleaning Data", "Trimming whitespace and deduplicating rows...", () => {
+                const trim = document.getElementById('cleanTrim').checked;
+                const removeBlanks = document.getElementById('cleanBlanks').checked;
+                const dedupe = document.getElementById('cleanDedupe').checked;
+                const dedupeCol = document.getElementById('dedupeColumn').value;
                 
-                for (let [k, v] of Object.entries(r)) {
-                    let val = v;
-                    if (trim && typeof val === 'string') val = val.trim();
-                    newRow[k] = val;
-                    if (val !== "" && val !== null && val !== undefined) isRowBlank = false;
-                }
+                let sanitized = [];
+                let seen = new Set();
+                let removedBlanksCount = 0;
+                let removedDuplicatesCount = 0;
                 
-                if (removeBlanks && isRowBlank) {
-                    removedBlanksCount++;
-                    return; // Skip row
-                }
-                
-                if (dedupe) {
-                    const signature = dedupeCol === 'ALL' ? JSON.stringify(newRow) : (newRow[dedupeCol] !== undefined ? newRow[dedupeCol].toString() : '');
-                    if (seen.has(signature)) {
-                        removedDuplicatesCount++;
+                table.data.forEach(r => {
+                    let newRow = {};
+                    let isRowBlank = true;
+                    
+                    for (let [k, v] of Object.entries(r)) {
+                        let val = v;
+                        if (trim && typeof val === 'string') val = val.trim();
+                        newRow[k] = val;
+                        if (val !== "" && val !== null && val !== undefined) isRowBlank = false;
+                    }
+                    
+                    if (removeBlanks && isRowBlank) {
+                        removedBlanksCount++;
                         return; // Skip row
                     }
-                    seen.add(signature);
-                }
+                    
+                    if (dedupe) {
+                        const signature = dedupeCol === 'ALL' ? JSON.stringify(newRow) : (newRow[dedupeCol] !== undefined ? newRow[dedupeCol].toString() : '');
+                        if (seen.has(signature)) {
+                            removedDuplicatesCount++;
+                            return; // Skip row
+                        }
+                        seen.add(signature);
+                    }
+                    
+                    sanitized.push(newRow);
+                });
                 
-                sanitized.push(newRow);
+                table.data = sanitized;
+                saveStateToHistory(table, "Cleaner & Dedupe");
+                log(`Cleaning complete. Removed ${removedBlanksCount} blank rows and ${removedDuplicatesCount} duplicates.`, 'success');
+                refreshActiveGrid();
             });
-            
-            table.data = sanitized;
-            saveStateToHistory(table, "Cleaner & Dedupe");
-            log(`Cleaning complete. Removed ${removedBlanksCount} blank rows and ${removedDuplicatesCount} duplicates.`, 'success');
-            refreshActiveGrid();
         }
         
         // 3. Filter Splitter
@@ -2200,22 +2284,24 @@
             const splitCol = document.getElementById('splitColumn').value;
             if (!splitCol) return log('No grouping split column specified.', 'warn');
             
-            const groups = {};
-            table.data.forEach(r => {
-                const key = r[splitCol] !== undefined ? r[splitCol].toString() : 'Ungrouped';
-                if (!groups[key]) groups[key] = [];
-                groups[key].push(r);
+            runOperationWithLoading("Splitting Dataset", `Splitting table on column "${splitCol}"...`, () => {
+                const groups = {};
+                table.data.forEach(r => {
+                    const key = r[splitCol] !== undefined ? r[splitCol].toString() : 'Ungrouped';
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(r);
+                });
+                
+                const groupKeys = Object.keys(groups);
+                log(`Splitting active table into ${groupKeys.length} sub-tables in workspace...`, 'system');
+                
+                groupKeys.forEach(k => {
+                    const cleanKeyName = k.replace(/[\/*?:[\]]/g, '_').substring(0, 30);
+                    addTableToWorkspace(`${table.name} [Split-${cleanKeyName}]`, groups[k]);
+                });
+                
+                log(`Splitting completed. Created ${groupKeys.length} new tables.`, 'success');
             });
-            
-            const groupKeys = Object.keys(groups);
-            log(`Splitting active table into ${groupKeys.length} sub-tables in workspace...`, 'system');
-            
-            groupKeys.forEach(k => {
-                const cleanKeyName = k.replace(/[\/*?:[\]]/g, '_').substring(0, 30);
-                addTableToWorkspace(`${table.name} [Split-${cleanKeyName}]`, groups[k]);
-            });
-            
-            log(`Splitting completed. Created ${groupKeys.length} new tables.`, 'success');
         }
         
         // 4. Safe Duplicate Flagger
@@ -2226,25 +2312,27 @@
             const col = document.getElementById('flagCol').value;
             if (!col) return log('No verification flag column specified.', 'warn');
             
-            const seen = new Set();
-            table.data = table.data.map(r => {
-                const val = r[col];
-                const isDup = seen.has(val);
-                if (!isDup) seen.add(val);
-                return {
-                    ...r,
-                    'Is_Duplicate': isDup ? 'TRUE' : 'FALSE'
-                };
+            runOperationWithLoading("Flagging Duplicates", `Checking for duplicates in column "${col}"...`, () => {
+                const seen = new Set();
+                table.data = table.data.map(r => {
+                    const val = r[col];
+                    const isDup = seen.has(val);
+                    if (!isDup) seen.add(val);
+                    return {
+                        ...r,
+                        'Is_Duplicate': isDup ? 'TRUE' : 'FALSE'
+                    };
+                });
+                
+                if (!table.headers.includes('Is_Duplicate')) {
+                    table.headers.push('Is_Duplicate');
+                }
+                
+                saveStateToHistory(table, `Flagged duplicates in "${col}"`);
+                log(`Appended "Is_Duplicate" flag column.`, 'success');
+                updateDropdownSelectors();
+                refreshActiveGrid();
             });
-            
-            if (!table.headers.includes('Is_Duplicate')) {
-                table.headers.push('Is_Duplicate');
-            }
-            
-            saveStateToHistory(table, `Flagged duplicates in "${col}"`);
-            log(`Appended "Is_Duplicate" flag column.`, 'success');
-            updateDropdownSelectors();
-            refreshActiveGrid();
         }
         
         // VLOOKUP engine table dependencies
@@ -2275,30 +2363,32 @@
             
             if (!leftTable || !rightTable) return log('Failed lookup: both datasets must be active in workspace.', 'error');
             
-            log('Initiating lookup join...', 'system');
-            
-            // Map lookup table
-            const rightMap = {};
-            rightTable.data.forEach(r => {
-                const val = r[rightCol];
-                if (val !== undefined) rightMap[val] = r;
-            });
-            
-            const joinedData = leftTable.data.map(leftRow => {
-                const matchVal = leftRow[leftCol];
-                const rightRow = rightMap[matchVal] || {};
+            runOperationWithLoading("VLOOKUP Engine", "Joining tables on key column...", () => {
+                log('Initiating lookup join...', 'system');
                 
-                const resRow = { ...leftRow };
-                for (let k in rightRow) {
-                    if (k !== rightCol) {
-                        resRow[`Ref_${k}`] = rightRow[k];
+                // Map lookup table
+                const rightMap = {};
+                rightTable.data.forEach(r => {
+                    const val = r[rightCol];
+                    if (val !== undefined) rightMap[val] = r;
+                });
+                
+                const joinedData = leftTable.data.map(leftRow => {
+                    const matchVal = leftRow[leftCol];
+                    const rightRow = rightMap[matchVal] || {};
+                    
+                    const resRow = { ...leftRow };
+                    for (let k in rightRow) {
+                        if (k !== rightCol) {
+                            resRow[`Ref_${k}`] = rightRow[k];
+                        }
                     }
-                }
-                return resRow;
+                    return resRow;
+                });
+                
+                addTableToWorkspace(`Joined_Data_${Date.now()}`, joinedData);
+                log(`Lookup complete. Saved new joined table.`, 'success');
             });
-            
-            addTableToWorkspace(`Joined_Data_${Date.now()}`, joinedData);
-            log(`Lookup complete. Saved new joined table.`, 'success');
         }
         
         // Batch Dictionary dependencies
@@ -2338,29 +2428,31 @@
             
             if (!targetTable || !mapTable) return log('Could not resolve target or dictionary map tables.', 'error');
             
-            // Build dictionary object
-            const dictionary = {};
-            mapTable.data.forEach(r => {
-                const oldVal = r[oldCol];
-                const newVal = r[newCol];
-                if (oldVal !== undefined) dictionary[oldVal] = newVal;
+            runOperationWithLoading("Batch Dictionary Replacer", "Replacing values using reference dictionary...", () => {
+                // Build dictionary object
+                const dictionary = {};
+                mapTable.data.forEach(r => {
+                    const oldVal = r[oldCol];
+                    const newVal = r[newCol];
+                    if (oldVal !== undefined) dictionary[oldVal] = newVal;
+                });
+                
+                log('Applying batch replacements...', 'system');
+                let replacementCounter = 0;
+                
+                targetTable.data = targetTable.data.map(row => {
+                    const currentVal = row[targetCol];
+                    if (currentVal !== undefined && dictionary.hasOwnProperty(currentVal)) {
+                        replacementCounter++;
+                        return { ...row, [targetCol]: dictionary[currentVal] };
+                    }
+                    return row;
+                });
+                
+                saveStateToHistory(targetTable, `Dictionary mapping on "${targetCol}"`);
+                log(`Replaced ${replacementCounter} entries in target column.`, 'success');
+                refreshActiveGrid();
             });
-            
-            log('Applying batch replacements...', 'system');
-            let replacementCounter = 0;
-            
-            targetTable.data = targetTable.data.map(row => {
-                const currentVal = row[targetCol];
-                if (currentVal !== undefined && dictionary.hasOwnProperty(currentVal)) {
-                    replacementCounter++;
-                    return { ...row, [targetCol]: dictionary[currentVal] };
-                }
-                return row;
-            });
-            
-            saveStateToHistory(targetTable, `Dictionary mapping on "${targetCol}"`);
-            log(`Replaced ${replacementCounter} entries in target column.`, 'success');
-            refreshActiveGrid();
         }
         
         // 7. Column Extractor
@@ -2372,37 +2464,39 @@
             const action = document.getElementById('colExtractAction').value;
             const delimiter = document.getElementById('colExtractDelimiter').value;
             
-            log('Extracting attributes...', 'system');
-            
-            table.data = table.data.map(r => {
-                const rawVal = r[col] !== undefined ? r[col].toString() : '';
-                const newRow = { ...r };
+            runOperationWithLoading("Column Extractor", "Extracting values/subcomponents...", () => {
+                log('Extracting attributes...', 'system');
                 
-                if (action === 'delimiter') {
-                    const parts = rawVal.split(delimiter);
-                    parts.forEach((p, idx) => {
-                        const newHeader = `${col}_Part${idx + 1}`;
-                        newRow[newHeader] = p.trim();
+                table.data = table.data.map(r => {
+                    const rawVal = r[col] !== undefined ? r[col].toString() : '';
+                    const newRow = { ...r };
+                    
+                    if (action === 'delimiter') {
+                        const parts = rawVal.split(delimiter);
+                        parts.forEach((p, idx) => {
+                            const newHeader = `${col}_Part${idx + 1}`;
+                            newRow[newHeader] = p.trim();
+                            if (!table.headers.includes(newHeader)) table.headers.push(newHeader);
+                        });
+                    } else if (action === 'email') {
+                        const matches = rawVal.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi);
+                        const newHeader = `${col}_Emails`;
+                        newRow[newHeader] = matches ? matches.join(', ') : '';
                         if (!table.headers.includes(newHeader)) table.headers.push(newHeader);
-                    });
-                } else if (action === 'email') {
-                    const matches = rawVal.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi);
-                    const newHeader = `${col}_Emails`;
-                    newRow[newHeader] = matches ? matches.join(', ') : '';
-                    if (!table.headers.includes(newHeader)) table.headers.push(newHeader);
-                } else if (action === 'number') {
-                    const matches = rawVal.match(/\d+/g);
-                    const newHeader = `${col}_Numbers`;
-                    newRow[newHeader] = matches ? matches.join('') : '';
-                    if (!table.headers.includes(newHeader)) table.headers.push(newHeader);
-                }
-                return newRow;
+                    } else if (action === 'number') {
+                        const matches = rawVal.match(/\d+/g);
+                        const newHeader = `${col}_Numbers`;
+                        newRow[newHeader] = matches ? matches.join('') : '';
+                        if (!table.headers.includes(newHeader)) table.headers.push(newHeader);
+                    }
+                    return newRow;
+                });
+                
+                saveStateToHistory(table, `Extracted details from "${col}"`);
+                log(`Attribute extraction complete.`, 'success');
+                updateDropdownSelectors();
+                refreshActiveGrid();
             });
-            
-            saveStateToHistory(table, `Extracted details from "${col}"`);
-            log(`Attribute extraction complete.`, 'success');
-            updateDropdownSelectors();
-            refreshActiveGrid();
         }
         
         // 8. Text Concatenator
@@ -2416,22 +2510,24 @@
             
             if (selectedCols.length < 2) return log('Please select at least 2 columns to concatenate.', 'warn');
             
-            table.data = table.data.map(r => {
-                const combined = selectedCols.map(c => (r[c] !== undefined && r[c] !== null) ? r[c].toString() : '').join(delim);
-                return {
-                    ...r,
-                    [newName]: combined
-                };
+            runOperationWithLoading("Text Concatenator", `Combining columns to "${newName}"...`, () => {
+                table.data = table.data.map(r => {
+                    const combined = selectedCols.map(c => (r[c] !== undefined && r[c] !== null) ? r[c].toString() : '').join(delim);
+                    return {
+                        ...r,
+                        [newName]: combined
+                    };
+                });
+                
+                if (!table.headers.includes(newName)) {
+                    table.headers.push(newName);
+                }
+                
+                saveStateToHistory(table, `Concatenated into "${newName}"`);
+                log(`Created concatenated column "${newName}".`, 'success');
+                updateDropdownSelectors();
+                refreshActiveGrid();
             });
-            
-            if (!table.headers.includes(newName)) {
-                table.headers.push(newName);
-            }
-            
-            saveStateToHistory(table, `Concatenated into "${newName}"`);
-            log(`Created concatenated column "${newName}".`, 'success');
-            updateDropdownSelectors();
-            refreshActiveGrid();
         }
         
         // 9. Regex Data Miner
@@ -2444,30 +2540,32 @@
             
             if (!pattern) return log('No regular expression pattern defined.', 'warn');
             
-            try {
-                const regex = new RegExp(pattern, 'g');
-                const newHeader = `${col}_RegexMatch`;
-                
-                table.data = table.data.map(r => {
-                    const v = (r[col] !== undefined && r[col] !== null) ? r[col].toString() : '';
-                    const match = v.match(regex);
-                    return {
-                        ...r,
-                        [newHeader]: match ? match.join(' | ') : ''
-                    };
-                });
-                
-                if (!table.headers.includes(newHeader)) {
-                    table.headers.push(newHeader);
+            runOperationWithLoading("Regex Miner", "Extracting regex pattern matches...", () => {
+                try {
+                    const regex = new RegExp(pattern, 'g');
+                    const newHeader = `${col}_RegexMatch`;
+                    
+                    table.data = table.data.map(r => {
+                        const v = (r[col] !== undefined && r[col] !== null) ? r[col].toString() : '';
+                        const match = v.match(regex);
+                        return {
+                            ...r,
+                            [newHeader]: match ? match.join(' | ') : ''
+                        };
+                    });
+                    
+                    if (!table.headers.includes(newHeader)) {
+                        table.headers.push(newHeader);
+                    }
+                    
+                    saveStateToHistory(table, `Regex mined column "${col}"`);
+                    log(`Regular expression miner complete. Match results saved to "${newHeader}"`, 'success');
+                    updateDropdownSelectors();
+                    refreshActiveGrid();
+                } catch (err) {
+                    log(`Invalid Regex Pattern expression: ${err.message}`, 'error');
                 }
-                
-                saveStateToHistory(table, `Regex mined column "${col}"`);
-                log(`Regular expression miner complete. Match results saved to "${newHeader}"`, 'success');
-                updateDropdownSelectors();
-                refreshActiveGrid();
-            } catch (err) {
-                log(`Invalid Regex Pattern expression: ${err.message}`, 'error');
-            }
+            });
         }
         
         // 10. Smart Fill-Down
@@ -2475,25 +2573,27 @@
             const table = getActiveTable();
             if (!table) return log('Workspace has no active table.', 'error');
             
-            const col = document.getElementById('fillDownCol').value;
-            let lastValue = null;
-            let counter = 0;
-            
-            table.data = table.data.map(r => {
-                const val = r[col];
-                if (val !== undefined && val !== null && val.toString().trim() !== '') {
-                    lastValue = val;
+            runOperationWithLoading("Smart Fill-Down", "Filling blank cells downwards...", () => {
+                const col = document.getElementById('fillDownCol').value;
+                let lastValue = null;
+                let counter = 0;
+                
+                table.data = table.data.map(r => {
+                    const val = r[col];
+                    if (val !== undefined && val !== null && val.toString().trim() !== '') {
+                        lastValue = val;
+                        return r;
+                    } else if (lastValue !== null) {
+                        counter++;
+                        return { ...r, [col]: lastValue };
+                    }
                     return r;
-                } else if (lastValue !== null) {
-                    counter++;
-                    return { ...r, [col]: lastValue };
-                }
-                return r;
+                });
+                
+                saveStateToHistory(table, `Fill-Down on "${col}"`);
+                log(`Success: filled ${counter} blank cells using fill-down strategy.`, 'success');
+                refreshActiveGrid();
             });
-            
-            saveStateToHistory(table, `Fill-Down on "${col}"`);
-            log(`Success: filled ${counter} blank cells using fill-down strategy.`, 'success');
-            refreshActiveGrid();
         }
         
         // 11. The Un-Pivoter
@@ -2504,27 +2604,29 @@
             const keepCols = Array.from(document.getElementById('unpivotCols').selectedOptions).map(opt => opt.value);
             if (keepCols.length === 0) return log('Select at least 1 key column to keep/anchor.', 'warn');
             
-            log('Unpivoting table matrix...', 'system');
-            let flattened = [];
-            
-            table.data.forEach(row => {
-                // Get key anchor values
-                const anchor = {};
-                keepCols.forEach(c => anchor[c] = row[c]);
+            runOperationWithLoading("Unpivoting Table", "Flattening wide columns to long rows...", () => {
+                log('Unpivoting table matrix...', 'system');
+                let flattened = [];
                 
-                for (let k in row) {
-                    if (!keepCols.includes(k)) {
-                        flattened.push({
-                            ...anchor,
-                            'Pivot_Column': k,
-                            'Pivot_Value': row[k]
-                        });
+                table.data.forEach(row => {
+                    // Get key anchor values
+                    const anchor = {};
+                    keepCols.forEach(c => anchor[c] = row[c]);
+                    
+                    for (let k in row) {
+                        if (!keepCols.includes(k)) {
+                            flattened.push({
+                                ...anchor,
+                                'Pivot_Column': k,
+                                'Pivot_Value': row[k]
+                            });
+                        }
                     }
-                }
+                });
+                
+                addTableToWorkspace(`${table.name} [Flattened]`, flattened);
+                log(`Flattened table. Output holds ${flattened.length} rows.`, 'success');
             });
-            
-            addTableToWorkspace(`${table.name} [Flattened]`, flattened);
-            log(`Flattened table. Output holds ${flattened.length} rows.`, 'success');
         }
         
         // Blank Imputer Strategy
@@ -2543,34 +2645,36 @@
             const strategy = document.getElementById('imputeStrategy').value;
             const customVal = document.getElementById('imputeCustomVal').value;
             
-            let fillVal = customVal;
-            
-            if (strategy === 'average') {
-                let sum = 0;
-                let count = 0;
-                table.data.forEach(r => {
-                    const num = parseFloat(r[col]);
-                    if (!isNaN(num)) {
-                        sum += num;
-                        count++;
-                    }
-                });
-                fillVal = count > 0 ? (sum / count).toFixed(3) : 0;
-            }
-            
-            let counter = 0;
-            table.data = table.data.map(r => {
-                const val = r[col];
-                if (val === undefined || val === null || val.toString().trim() === '') {
-                    counter++;
-                    return { ...r, [col]: fillVal };
+            runOperationWithLoading("Imputing Blanks", `Filling blank cells in "${col}"...`, () => {
+                let fillVal = customVal;
+                
+                if (strategy === 'average') {
+                    let sum = 0;
+                    let count = 0;
+                    table.data.forEach(r => {
+                        const num = parseFloat(r[col]);
+                        if (!isNaN(num)) {
+                            sum += num;
+                            count++;
+                        }
+                    });
+                    fillVal = count > 0 ? (sum / count).toFixed(3) : 0;
                 }
-                return r;
+                
+                let counter = 0;
+                table.data = table.data.map(r => {
+                    const val = r[col];
+                    if (val === undefined || val === null || val.toString().trim() === '') {
+                        counter++;
+                        return { ...r, [col]: fillVal };
+                    }
+                    return r;
+                });
+                
+                saveStateToHistory(table, `Imputed blanks in "${col}"`);
+                log(`Success: filled ${counter} empty slots with value "${fillVal}"`, 'success');
+                refreshActiveGrid();
             });
-            
-            saveStateToHistory(table, `Imputed blanks in "${col}"`);
-            log(`Success: filled ${counter} empty slots with value "${fillVal}"`, 'success');
-            refreshActiveGrid();
         }
         
         // 13. Date Component Extractor
@@ -2579,32 +2683,35 @@
             if (!table) return log('Workspace has no active table.', 'error');
             
             const col = document.getElementById('dateExtCol').value;
-            const newCols = [`${col}_Year`, `${col}_Month`, `${col}_Quarter`].filter(n => !table.headers.includes(n));
             
-            table.data = table.data.map(r => {
-                const dt = new Date(r[col]);
-                if (!isNaN(dt.getTime())) {
+            runOperationWithLoading("Extracting Date Components", `Parsing date values in "${col}"...`, () => {
+                const newCols = [`${col}_Year`, `${col}_Month`, `${col}_Quarter`].filter(n => !table.headers.includes(n));
+                
+                table.data = table.data.map(r => {
+                    const dt = new Date(r[col]);
+                    if (!isNaN(dt.getTime())) {
+                        return {
+                            ...r,
+                            [`${col}_Year`]: dt.getFullYear(),
+                            [`${col}_Month`]: dt.getMonth() + 1,
+                            [`${col}_Quarter`]: `Q${Math.ceil((dt.getMonth() + 1) / 3)}`
+                        };
+                    }
                     return {
                         ...r,
-                        [`${col}_Year`]: dt.getFullYear(),
-                        [`${col}_Month`]: dt.getMonth() + 1,
-                        [`${col}_Quarter`]: `Q${Math.ceil((dt.getMonth() + 1) / 3)}`
+                        [`${col}_Year`]: '',
+                        [`${col}_Month`]: '',
+                        [`${col}_Quarter`]: ''
                     };
-                }
-                return {
-                    ...r,
-                    [`${col}_Year`]: '',
-                    [`${col}_Month`]: '',
-                    [`${col}_Quarter`]: ''
-                };
+                });
+                
+                newCols.forEach(n => table.headers.push(n));
+                
+                saveStateToHistory(table, `Extracted date fields from "${col}"`);
+                log(`Appended Year, Month, and Quarter dimensions.`, 'success');
+                updateDropdownSelectors();
+                refreshActiveGrid();
             });
-            
-            newCols.forEach(n => table.headers.push(n));
-            
-            saveStateToHistory(table, `Extracted date fields from "${col}"`);
-            log(`Appended Year, Month, and Quarter dimensions.`, 'success');
-            updateDropdownSelectors();
-            refreshActiveGrid();
         }
         
         // 14. Standardizer
@@ -2615,25 +2722,27 @@
             const col = document.getElementById('formatCol').value;
             const action = document.getElementById('formatAction').value;
             
-            table.data = table.data.map(r => {
-                const v = (r[col] || '').toString();
-                let formatted = v;
-                if (action === 'UPPER') formatted = v.toUpperCase();
-                else if (action === 'lower') formatted = v.toLowerCase();
-                else if (action === 'Proper') formatted = v.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-                else if (action === 'DateString') {
-                    const dt = new Date(v);
-                    if (!isNaN(dt.getTime())) formatted = dt.toISOString().split('T')[0];
-                }
-                return {
-                    ...r,
-                    [col]: formatted
-                };
+            runOperationWithLoading("Standardizing Casing/Dates", `Formatting column "${col}"...`, () => {
+                table.data = table.data.map(r => {
+                    const v = (r[col] || '').toString();
+                    let formatted = v;
+                    if (action === 'UPPER') formatted = v.toUpperCase();
+                    else if (action === 'lower') formatted = v.toLowerCase();
+                    else if (action === 'Proper') formatted = v.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+                    else if (action === 'DateString') {
+                        const dt = new Date(v);
+                        if (!isNaN(dt.getTime())) formatted = dt.toISOString().split('T')[0];
+                    }
+                    return {
+                        ...r,
+                        [col]: formatted
+                    };
+                });
+                
+                saveStateToHistory(table, `Standardized casing/dates in "${col}"`);
+                log(`Standardizer completed.`, 'success');
+                refreshActiveGrid();
             });
-            
-            saveStateToHistory(table, `Standardized casing/dates in "${col}"`);
-            log(`Standardizer completed.`, 'success');
-            refreshActiveGrid();
         }
         
         // 15. Conditional Filter
@@ -2645,29 +2754,31 @@
             const op = document.getElementById('filterOp').value;
             const filterVal = document.getElementById('filterVal').value;
             
-            log('Applying filter matching rules...', 'system');
-            
-            const matches = table.data.filter(r => {
-                const val = (r[col] || '').toString();
+            runOperationWithLoading("Filtering Rows", "Running matching rules...", () => {
+                log('Applying filter matching rules...', 'system');
                 
-                if (op === 'contains') {
-                    return val.toLowerCase().includes(filterVal.toLowerCase());
-                }
+                const matches = table.data.filter(r => {
+                    const val = (r[col] || '').toString();
+                    
+                    if (op === 'contains') {
+                        return val.toLowerCase().includes(filterVal.toLowerCase());
+                    }
+                    
+                    // Numerical check
+                    const valNum = parseFloat(val);
+                    const filterNum = parseFloat(filterVal);
+                    if (!isNaN(valNum) && !isNaN(filterNum) && ['>', '<'].includes(op)) {
+                        return op === '>' ? valNum > filterNum : valNum < filterNum;
+                    }
+                    
+                    if (op === '==') return val === filterVal;
+                    if (op === '!=') return val !== filterVal;
+                    return true;
+                });
                 
-                // Numerical check
-                const valNum = parseFloat(val);
-                const filterNum = parseFloat(filterVal);
-                if (!isNaN(valNum) && !isNaN(filterNum) && ['>', '<'].includes(op)) {
-                    return op === '>' ? valNum > filterNum : valNum < filterNum;
-                }
-                
-                if (op === '==') return val === filterVal;
-                if (op === '!=') return val !== filterVal;
-                return true;
+                addTableToWorkspace(`Filter_Result_${Date.now()}`, matches);
+                log(`Filter completed: loaded ${matches.length} matches into workspace.`, 'success');
             });
-            
-            addTableToWorkspace(`Filter_Result_${Date.now()}`, matches);
-            log(`Filter completed: loaded ${matches.length} matches into workspace.`, 'success');
         }
         
         // 16. Column Math Calc
@@ -2680,32 +2791,34 @@
             const operandVal = document.getElementById('mathCol2').value.trim();
             const outputName = document.getElementById('mathNewName').value.trim() || 'Math_Result';
             
-            const isSecondOperandCol = table.headers.includes(operandVal);
-            
-            table.data = table.data.map(r => {
-                const v1 = parseFloat(r[col1]) || 0;
-                const v2 = isSecondOperandCol ? (parseFloat(r[operandVal]) || 0) : (parseFloat(operandVal) || 0);
+            runOperationWithLoading("Calculating Column Math", `Generating math values for "${outputName}"...`, () => {
+                const isSecondOperandCol = table.headers.includes(operandVal);
                 
-                let result = 0;
-                if (op === '+') result = v1 + v2;
-                else if (op === '-') result = v1 - v2;
-                else if (op === '*') result = v1 * v2;
-                else if (op === '/') result = v2 !== 0 ? v1 / v2 : 0;
+                table.data = table.data.map(r => {
+                    const v1 = parseFloat(r[col1]) || 0;
+                    const v2 = isSecondOperandCol ? (parseFloat(r[operandVal]) || 0) : (parseFloat(operandVal) || 0);
+                    
+                    let result = 0;
+                    if (op === '+') result = v1 + v2;
+                    else if (op === '-') result = v1 - v2;
+                    else if (op === '*') result = v1 * v2;
+                    else if (op === '/') result = v2 !== 0 ? v1 / v2 : 0;
+                    
+                    return {
+                        ...r,
+                        [outputName]: result
+                    };
+                });
                 
-                return {
-                    ...r,
-                    [outputName]: result
-                };
+                if (!table.headers.includes(outputName)) {
+                    table.headers.push(outputName);
+                }
+                
+                saveStateToHistory(table, `Calculated math column "${outputName}"`);
+                log(`Success: generated mathematical values in "${outputName}".`, 'success');
+                updateDropdownSelectors();
+                refreshActiveGrid();
             });
-            
-            if (!table.headers.includes(outputName)) {
-                table.headers.push(outputName);
-            }
-            
-            saveStateToHistory(table, `Calculated math column "${outputName}"`);
-            log(`Success: generated mathematical values in "${outputName}".`, 'success');
-            updateDropdownSelectors();
-            refreshActiveGrid();
         }
         
         // 17. Running Total
@@ -2714,25 +2827,28 @@
             if (!table) return log('Workspace has no active table.', 'error');
             
             const col = document.getElementById('runTotCol').value;
-            let accumulator = 0;
             
-            table.data = table.data.map(r => {
-                const val = parseFloat(r[col]) || 0;
-                accumulator += val;
-                return {
-                    ...r,
-                    'Cumulative_Total': accumulator
-                };
+            runOperationWithLoading("Running Total", `Calculating running total on "${col}"...`, () => {
+                let accumulator = 0;
+                
+                table.data = table.data.map(r => {
+                    const val = parseFloat(r[col]) || 0;
+                    accumulator += val;
+                    return {
+                        ...r,
+                        'Cumulative_Total': accumulator
+                    };
+                });
+                
+                if (!table.headers.includes('Cumulative_Total')) {
+                    table.headers.push('Cumulative_Total');
+                }
+                
+                saveStateToHistory(table, `Running total on "${col}"`);
+                log(`Success: Cumulative balance column added.`, 'success');
+                updateDropdownSelectors();
+                refreshActiveGrid();
             });
-            
-            if (!table.headers.includes('Cumulative_Total')) {
-                table.headers.push('Cumulative_Total');
-            }
-            
-            saveStateToHistory(table, `Running total on "${col}"`);
-            log(`Success: Cumulative balance column added.`, 'success');
-            updateDropdownSelectors();
-            refreshActiveGrid();
         }
         
         // 18. Unique ID Generator
@@ -2741,24 +2857,27 @@
             if (!table) return log('Workspace has no active table.', 'error');
             
             const type = document.getElementById('idGenType').value;
-            let counter = 1;
             
-            table.data = table.data.map(r => {
-                const id = type === 'seq' ? counter++ : 'uuid-' + Math.random().toString(36).substr(2, 9);
-                return {
-                    ...r,
-                    'Row_ID': id
-                };
+            runOperationWithLoading("Generating Unique IDs", "Injecting primary identifiers...", () => {
+                let counter = 1;
+                
+                table.data = table.data.map(r => {
+                    const id = type === 'seq' ? counter++ : 'uuid-' + Math.random().toString(36).substr(2, 9);
+                    return {
+                        ...r,
+                        'Row_ID': id
+                    };
+                });
+                
+                if (!table.headers.includes('Row_ID')) {
+                    table.headers.unshift('Row_ID'); // Put ID at the beginning
+                }
+                
+                saveStateToHistory(table, "Generated Row_IDs");
+                log(`Success: Primary identifiers injected.`, 'success');
+                updateDropdownSelectors();
+                refreshActiveGrid();
             });
-            
-            if (!table.headers.includes('Row_ID')) {
-                table.headers.unshift('Row_ID'); // Put ID at the beginning
-            }
-            
-            saveStateToHistory(table, "Generated Row_IDs");
-            log(`Success: Primary identifiers injected.`, 'success');
-            updateDropdownSelectors();
-            refreshActiveGrid();
         }
         
         // 19. Data Anonymizer
@@ -2769,27 +2888,29 @@
             const col = document.getElementById('anonCol').value;
             const action = document.getElementById('anonAction').value;
             
-            table.data = table.data.map(r => {
-                const val = (r[col] || '').toString();
-                if (!val) return r;
+            runOperationWithLoading("Anonymizing Column", `Obfuscating PII in column "${col}"...`, () => {
+                table.data = table.data.map(r => {
+                    const val = (r[col] || '').toString();
+                    if (!val) return r;
+                    
+                    let anon = val;
+                    if (action === 'asterisk') {
+                        anon = '*'.repeat(val.length || 8);
+                    } else if (action === 'partial') {
+                        anon = val.length > 4 ? val.substring(0, 2) + '***' + val.slice(-2) : '***';
+                    } else if (action === 'scramble') {
+                        anon = val.split('').sort(() => 0.5 - Math.random()).join('');
+                    }
+                    return {
+                        ...r,
+                        [col]: anon
+                    };
+                });
                 
-                let anon = val;
-                if (action === 'asterisk') {
-                    anon = '*'.repeat(val.length || 8);
-                } else if (action === 'partial') {
-                    anon = val.length > 4 ? val.substring(0, 2) + '***' + val.slice(-2) : '***';
-                } else if (action === 'scramble') {
-                    anon = val.split('').sort(() => 0.5 - Math.random()).join('');
-                }
-                return {
-                    ...r,
-                    [col]: anon
-                };
+                saveStateToHistory(table, `Anonymized column "${col}"`);
+                log(`Information obfuscation completed.`, 'success');
+                refreshActiveGrid();
             });
-            
-            saveStateToHistory(table, `Anonymized column "${col}"`);
-            log(`Information obfuscation completed.`, 'success');
-            refreshActiveGrid();
         }
         
         // 20. File Comparator
@@ -2803,29 +2924,31 @@
             
             if (!leftTable || !rightTable) return log('Diff Engine requires two active workspace tables.', 'error');
             
-            log('Triggering data diff audit...', 'system');
-            
-            const leftKeys = new Set(leftTable.data.map(r => r[keyCol]));
-            const rightKeys = new Set(rightTable.data.map(r => r[keyCol]));
-            
-            let diffRows = [];
-            
-            // Find added items
-            rightTable.data.forEach(r => {
-                if (!leftKeys.has(r[keyCol])) {
-                    diffRows.push({ ...r, 'Comparison_Status': 'ADDED' });
-                }
+            runOperationWithLoading("Comparing Files", "Running data discrepancies audit...", () => {
+                log('Triggering data diff audit...', 'system');
+                
+                const leftKeys = new Set(leftTable.data.map(r => r[keyCol]));
+                const rightKeys = new Set(rightTable.data.map(r => r[keyCol]));
+                
+                let diffRows = [];
+                
+                // Find added items
+                rightTable.data.forEach(r => {
+                    if (!leftKeys.has(r[keyCol])) {
+                        diffRows.push({ ...r, 'Comparison_Status': 'ADDED' });
+                    }
+                });
+                
+                // Find removed items
+                leftTable.data.forEach(r => {
+                    if (!rightKeys.has(r[keyCol])) {
+                        diffRows.push({ ...r, 'Comparison_Status': 'REMOVED' });
+                    }
+                });
+                
+                addTableToWorkspace(`Diff_Audit_${Date.now()}`, diffRows);
+                log(`Diff completed: ${diffRows.length} discrepancies discovered and loaded to workspace.`, 'success');
             });
-            
-            // Find removed items
-            leftTable.data.forEach(r => {
-                if (!rightKeys.has(r[keyCol])) {
-                    diffRows.push({ ...r, 'Comparison_Status': 'REMOVED' });
-                }
-            });
-            
-            addTableToWorkspace(`Diff_Audit_${Date.now()}`, diffRows);
-            log(`Diff completed: ${diffRows.length} discrepancies discovered and loaded to workspace.`, 'success');
         }
         
         // 21. Audit Sampler
@@ -2837,17 +2960,19 @@
             const strategy = document.getElementById('sampleType').value;
             const amount = parseFloat(document.getElementById('sampleAmount').value) || 0;
             
-            let sampleSize = strategy === 'percent' ? Math.ceil(table.data.length * (amount / 100)) : amount;
-            if (sampleSize > table.data.length) sampleSize = table.data.length;
-            
-            log(`Extracting random sample of size ${sampleSize}...`, 'system');
-            
-            // Shuffle indices to extract samples
-            const shuffled = [...table.data].sort(() => 0.5 - Math.random());
-            const sampleData = shuffled.slice(0, sampleSize);
-            
-            addTableToWorkspace(`Sample_${sampleSize}_Rows_${Date.now()}`, sampleData);
-            log(`Success: loaded sample subset into workspace.`, 'success');
+            runOperationWithLoading("Audit Sampler", "Extracting random sample subset...", () => {
+                let sampleSize = strategy === 'percent' ? Math.ceil(table.data.length * (amount / 100)) : amount;
+                if (sampleSize > table.data.length) sampleSize = table.data.length;
+                
+                log(`Extracting random sample of size ${sampleSize}...`, 'system');
+                
+                // Shuffle indices to extract samples
+                const shuffled = [...table.data].sort(() => 0.5 - Math.random());
+                const sampleData = shuffled.slice(0, sampleSize);
+                
+                addTableToWorkspace(`Sample_${sampleSize}_Rows_${Date.now()}`, sampleData);
+                log(`Success: loaded sample subset into workspace.`, 'success');
+            });
         }
         
         // 22. Fuzzy Matcher
@@ -2858,35 +2983,37 @@
             const col = document.getElementById('fuzzyCol').value;
             const threshold = parseFloat(document.getElementById('fuzzyThreshold').value) || 85;
             
-            log('Initiating fuzzy distance calculations...', 'system');
-            
-            const uniqueVals = Array.from(new Set(table.data.map(r => r[col] ? r[col].toString() : ''))).filter(v => v.length > 2);
-            let results = [];
-            
-            for (let i = 0; i < uniqueVals.length; i++) {
-                for (let j = i + 1; j < uniqueVals.length; j++) {
-                    const v1 = uniqueVals[i];
-                    const v2 = uniqueVals[j];
-                    
-                    if (Math.abs(v1.length - v2.length) > 4) continue;
-                    
-                    // Levenshtein
-                    const dist = getLevenshteinDistance(v1, v2);
-                    const similarity = ((Math.max(v1.length, v2.length) - dist) / Math.max(v1.length, v2.length)) * 100;
-                    
-                    if (similarity >= threshold && similarity < 100) {
-                        results.push({
-                            'Value_1': v1,
-                            'Value_2': v2,
-                            'Levenshtein_Distance': dist,
-                            'Similarity_Percentage': similarity.toFixed(1) + '%'
-                        });
+            runOperationWithLoading("Fuzzy Matcher Scan", "Calculating string distance similarities...", () => {
+                log('Initiating fuzzy distance calculations...', 'system');
+                
+                const uniqueVals = Array.from(new Set(table.data.map(r => r[col] ? r[col].toString() : ''))).filter(v => v.length > 2);
+                let results = [];
+                
+                for (let i = 0; i < uniqueVals.length; i++) {
+                    for (let j = i + 1; j < uniqueVals.length; j++) {
+                        const v1 = uniqueVals[i];
+                        const v2 = uniqueVals[j];
+                        
+                        if (Math.abs(v1.length - v2.length) > 4) continue;
+                        
+                        // Levenshtein
+                        const dist = getLevenshteinDistance(v1, v2);
+                        const similarity = ((Math.max(v1.length, v2.length) - dist) / Math.max(v1.length, v2.length)) * 100;
+                        
+                        if (similarity >= threshold && similarity < 100) {
+                            results.push({
+                                'Value_1': v1,
+                                'Value_2': v2,
+                                'Levenshtein_Distance': dist,
+                                'Similarity_Percentage': similarity.toFixed(1) + '%'
+                            });
+                        }
                     }
                 }
-            }
-            
-            addTableToWorkspace(`Fuzzy_Matches_${Date.now()}`, results);
-            log(`Fuzzy scan matched ${results.length} pairs of similar text strings.`, 'success');
+                
+                addTableToWorkspace(`Fuzzy_Matches_${Date.now()}`, results);
+                log(`Fuzzy scan matched ${results.length} pairs of similar text strings.`, 'success');
+            });
         }
         
         function getLevenshteinDistance(a, b) {
@@ -2918,36 +3045,38 @@
             const col = document.getElementById('valCol').value;
             const constraint = document.getElementById('valType').value;
             
-            let failedCounter = 0;
-            table.data = table.data.map(r => {
-                const val = (r[col] || '').toString().trim();
+            runOperationWithLoading("Data Type Validator", `Auditing column "${col}" type constraints...`, () => {
+                let failedCounter = 0;
+                table.data = table.data.map(r => {
+                    const val = (r[col] || '').toString().trim();
+                    
+                    if (val === '') {
+                        return { ...r, 'Failed_Validation': 'FALSE' };
+                    }
+                    
+                    let fails = false;
+                    if (constraint === 'number') {
+                        fails = isNaN(parseFloat(val)) || !isFinite(val);
+                    } else if (constraint === 'text') {
+                        fails = /\d/.test(val);
+                    }
+                    
+                    if (fails) failedCounter++;
+                    return {
+                        ...r,
+                        'Failed_Validation': fails ? 'TRUE' : 'FALSE'
+                    };
+                });
                 
-                if (val === '') {
-                    return { ...r, 'Failed_Validation': 'FALSE' };
+                if (!table.headers.includes('Failed_Validation')) {
+                    table.headers.push('Failed_Validation');
                 }
                 
-                let fails = false;
-                if (constraint === 'number') {
-                    fails = isNaN(parseFloat(val)) || !isFinite(val);
-                } else if (constraint === 'text') {
-                    fails = /\d/.test(val);
-                }
-                
-                if (fails) failedCounter++;
-                return {
-                    ...r,
-                    'Failed_Validation': fails ? 'TRUE' : 'FALSE'
-                };
+                saveStateToHistory(table, `Validated data types in "${col}"`);
+                log(`Validation complete. Found ${failedCounter} records violating rule constraints.`, 'warn');
+                updateDropdownSelectors();
+                refreshActiveGrid();
             });
-            
-            if (!table.headers.includes('Failed_Validation')) {
-                table.headers.push('Failed_Validation');
-            }
-            
-            saveStateToHistory(table, `Validated data types in "${col}"`);
-            log(`Validation complete. Found ${failedCounter} records violating rule constraints.`, 'warn');
-            updateDropdownSelectors();
-            refreshActiveGrid();
         }
         
         // 24. Flat Aggregator
@@ -2959,28 +3088,30 @@
             const targetCol = document.getElementById('aggTargetCol').value;
             const operation = document.getElementById('aggOperation').value;
             
-            log('Aggregating categories...', 'system');
-            const groups = {};
-            
-            table.data.forEach(r => {
-                const key = r[groupCol] !== undefined && r[groupCol] !== null ? r[groupCol].toString() : 'Blank';
-                const val = parseFloat(r[targetCol]) || 0;
+            runOperationWithLoading("Flat Aggregator", `Grouping rows by "${groupCol}"...`, () => {
+                log('Aggregating categories...', 'system');
+                const groups = {};
                 
-                if (!groups[key]) groups[key] = { sum: 0, count: 0 };
-                groups[key].sum += val;
-                groups[key].count++;
+                table.data.forEach(r => {
+                    const key = r[groupCol] !== undefined && r[groupCol] !== null ? r[groupCol].toString() : 'Blank';
+                    const val = parseFloat(r[targetCol]) || 0;
+                    
+                    if (!groups[key]) groups[key] = { sum: 0, count: 0 };
+                    groups[key].sum += val;
+                    groups[key].count++;
+                });
+                
+                const aggregatedRows = Object.keys(groups).map(k => {
+                    const row = { [groupCol]: k };
+                    if (operation === 'sum') row['Total_Sum'] = groups[k].sum;
+                    else if (operation === 'count') row['Total_Count'] = groups[k].count;
+                    else if (operation === 'avg') row['Total_Average'] = groups[k].sum / groups[k].count;
+                    return row;
+                });
+                
+                addTableToWorkspace(`Group_Summary_${Date.now()}`, aggregatedRows);
+                log(`Aggregated output stacked into workspace.`, 'success');
             });
-            
-            const aggregatedRows = Object.keys(groups).map(k => {
-                const row = { [groupCol]: k };
-                if (operation === 'sum') row['Total_Sum'] = groups[k].sum;
-                else if (operation === 'count') row['Total_Count'] = groups[k].count;
-                else if (operation === 'avg') row['Total_Average'] = groups[k].sum / groups[k].count;
-                return row;
-            });
-            
-            addTableToWorkspace(`Group_Summary_${Date.now()}`, aggregatedRows);
-            log(`Aggregated output stacked into workspace.`, 'success');
         }
         
         // 25. 2D Matrix Pivot
@@ -2992,34 +3123,36 @@
             const colCol = document.getElementById('matrixCol').value;
             const valCol = document.getElementById('matrixVal').value;
             
-            log('Building 2D Pivot Matrix...', 'system');
-            
-            const matrix = {};
-            const uniqueCols = new Set();
-            
-            table.data.forEach(r => {
-                const rKey = r[rowCol] !== undefined ? r[rowCol].toString() : 'Ungrouped';
-                const cKey = r[colCol] !== undefined ? r[colCol].toString() : 'Ungrouped';
-                const val = parseFloat(r[valCol]) || 0;
+            runOperationWithLoading("Matrix Pivoting", `Generating 2D Pivot cross-tabulations...`, () => {
+                log('Building 2D Pivot Matrix...', 'system');
                 
-                uniqueCols.add(cKey);
+                const matrix = {};
+                const uniqueCols = new Set();
                 
-                if (!matrix[rKey]) matrix[rKey] = {};
-                if (!matrix[rKey][cKey]) matrix[rKey][cKey] = 0;
-                matrix[rKey][cKey] += val;
-            });
-            
-            const sortedCols = Array.from(uniqueCols).sort();
-            const matrixData = Object.keys(matrix).map(rName => {
-                const rowObj = { [rowCol]: rName };
-                sortedCols.forEach(c => {
-                    rowObj[c] = matrix[rName][c] || 0;
+                table.data.forEach(r => {
+                    const rKey = r[rowCol] !== undefined ? r[rowCol].toString() : 'Ungrouped';
+                    const cKey = r[colCol] !== undefined ? r[colCol].toString() : 'Ungrouped';
+                    const val = parseFloat(r[valCol]) || 0;
+                    
+                    uniqueCols.add(cKey);
+                    
+                    if (!matrix[rKey]) matrix[rKey] = {};
+                    if (!matrix[rKey][cKey]) matrix[rKey][cKey] = 0;
+                    matrix[rKey][cKey] += val;
                 });
-                return rowObj;
+                
+                const sortedCols = Array.from(uniqueCols).sort();
+                const matrixData = Object.keys(matrix).map(rName => {
+                    const rowObj = { [rowCol]: rName };
+                    sortedCols.forEach(c => {
+                        rowObj[c] = matrix[rName][c] || 0;
+                    });
+                    return rowObj;
+                });
+                
+                addTableToWorkspace(`2D_Pivot_${Date.now()}`, matrixData);
+                log(`Pivot matrix completed.`, 'success');
             });
-            
-            addTableToWorkspace(`2D_Pivot_${Date.now()}`, matrixData);
-            log(`Pivot matrix completed.`, 'success');
         }
         
         // 26. Data Health Profiler
@@ -3027,36 +3160,38 @@
             const table = getActiveTable();
             if (!table) return log('Workspace has no active table.', 'error');
             
-            log('Scanning dataset properties...', 'system');
-            const totalRows = table.data.length;
-            const profile = [];
-            
-            table.headers.forEach(h => {
-                let blanks = 0;
-                const uniques = new Set();
+            runOperationWithLoading("Health Profiler Scan", "Measuring metadata totals and rates...", () => {
+                log('Scanning dataset properties...', 'system');
+                const totalRows = table.data.length;
+                const profile = [];
                 
-                table.data.forEach(r => {
-                    const v = r[h];
-                    if (v === undefined || v === null || v.toString().trim() === '') {
-                        blanks++;
-                    } else {
-                        uniques.add(v);
-                    }
+                table.headers.forEach(h => {
+                    let blanks = 0;
+                    const uniques = new Set();
+                    
+                    table.data.forEach(r => {
+                        const v = r[h];
+                        if (v === undefined || v === null || v.toString().trim() === '') {
+                            blanks++;
+                        } else {
+                            uniques.add(v);
+                        }
+                    });
+                    
+                    const fillRate = (((totalRows - blanks) / totalRows) * 100).toFixed(1) + '%';
+                    
+                    profile.push({
+                        'Column_Name': h,
+                        'Total_Rows': totalRows,
+                        'Blank_Cells': blanks,
+                        'Fill_Rate': fillRate,
+                        'Unique_Values': uniques.size
+                    });
                 });
                 
-                const fillRate = (((totalRows - blanks) / totalRows) * 100).toFixed(1) + '%';
-                
-                profile.push({
-                    'Column_Name': h,
-                    'Total_Rows': totalRows,
-                    'Blank_Cells': blanks,
-                    'Fill_Rate': fillRate,
-                    'Unique_Values': uniques.size
-                });
+                addTableToWorkspace(`Health_Profile_${Date.now()}`, profile);
+                log(`Success: data health profile compiled in workspace.`, 'success');
             });
-            
-            addTableToWorkspace(`Health_Profile_${Date.now()}`, profile);
-            log(`Success: data health profile compiled in workspace.`, 'success');
         }
 
         // --- 11. PIPELINE BUILDER ENGINE & SERIALIZATION ---
@@ -3206,13 +3341,13 @@
             const steps = document.querySelectorAll('.pipe-step-card');
             if (steps.length === 0) return log('Pipeline error: Please add at least 1 pipeline step first.', 'warn');
             
-            log(`Applying ${steps.length}-step macro pipeline in-memory...`, 'system');
-            
-            // Perform deep copy of the active table state
-            let data = JSON.parse(JSON.stringify(activeTable.data));
-            let headers = [...activeTable.headers];
-            
-            try {
+            runOperationWithLoading("Executing Macro Pipeline", `Applying ${steps.length} sequential transformations...`, () => {
+                log(`Applying ${steps.length}-step macro pipeline in-memory...`, 'system');
+                
+                // Perform deep copy of the active table state
+                let data = JSON.parse(JSON.stringify(activeTable.data));
+                let headers = [...activeTable.headers];
+                
                 steps.forEach((step, idx) => {
                     const type = step.dataset.type;
                     log(`Executing step ${idx + 1} (${type})...`, 'info');
@@ -3295,9 +3430,7 @@
                 log(`Pipeline executed successfully on active table.`, 'success');
                 updateDropdownSelectors();
                 refreshActiveGrid();
-            } catch (err) {
-                log(`Pipeline execution broke: ${err.message}`, 'error');
-            }
+            });
         }
 
         // Save pipeline structure as JSON
