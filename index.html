@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Pro Data Studio - V9 Pipeline Edition</title>
+    <title>Excel Pro Data Studio - V10 Omnivore Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -32,13 +32,14 @@
 
     <header class="bg-gray-900 border-b border-gray-800 p-3 shadow-md flex justify-between items-center z-10 shrink-0">
         <div>
-            <h1 class="text-xl font-bold text-blue-400">Excel Pro Data Studio <span class="text-xs text-gray-500 border border-gray-700 rounded px-1 ml-2">V9.0</span></h1>
-            <p class="text-xs text-gray-400">27 Modules + Macro Pipeline Builder</p>
+            <h1 class="text-xl font-bold text-blue-400">Excel Pro Data Studio <span class="text-xs text-gray-500 border border-gray-700 rounded px-1 ml-2">V10.0</span></h1>
+            <p class="text-xs text-gray-400">Universal Format Engine: CSV, TSV, XLSX, ODS, XLSB & More</p>
         </div>
         <div class="flex items-center space-x-4">
             <span id="globalDataBadge" class="px-3 py-1 bg-gray-800 border border-gray-700 rounded-full text-xs font-mono text-gray-300">0 Files Loaded (0 Rows)</span>
-            <label class="bg-blue-600 hover:bg-blue-500 cursor-pointer text-white px-4 py-1.5 rounded shadow transition text-sm font-semibold">
-                Upload Files <input type="file" id="globalFileInput" multiple accept=".csv, .xlsx, .xls" class="hidden">
+            <label class="bg-blue-600 hover:bg-blue-500 cursor-pointer text-white px-4 py-1.5 rounded shadow transition text-sm font-semibold whitespace-nowrap">
+                Upload Universal Files
+                <input type="file" id="globalFileInput" multiple accept=".csv, .tsv, .txt, .xlsx, .xls, .xlsm, .xlsb, .ods, .fods" class="hidden">
             </label>
             <button id="clearDataBtn" class="bg-red-900 hover:bg-red-800 text-red-200 px-3 py-1.5 rounded transition text-sm hidden">Clear Memory</button>
         </div>
@@ -97,18 +98,15 @@
         <!-- Main Content Area -->
         <main class="flex-grow flex flex-col bg-gray-850 overflow-hidden relative">
             
-            <!-- NEW: V9 PIPELINE BUILDER -->
             <div id="tab-pipeline" class="tool-panel active">
                 <div>
-                    <h2 class="text-2xl font-bold text-white mb-1">Macro Pipeline Builder <span class="text-xs bg-purple-600 text-white px-2 py-0.5 rounded uppercase">New</span></h2>
+                    <h2 class="text-2xl font-bold text-white mb-1">Macro Pipeline Builder</h2>
                     <p class="text-gray-400 text-sm mb-4">String multiple operations together into a single automated recipe. Your data will pass through each step sequentially.</p>
                 </div>
                 
                 <div class="flex space-x-6 h-full overflow-hidden pb-4">
-                    <!-- Left: Step Selector -->
                     <div class="w-1/3 bg-gray-900 border border-gray-700 rounded-lg p-5 flex flex-col shadow-inner">
                         <h3 class="font-bold text-blue-400 mb-3 uppercase text-xs tracking-wider border-b border-gray-800 pb-2">1. Add Actions to Recipe</h3>
-                        
                         <label class="block text-sm mb-1 text-gray-300">Choose an Operation:</label>
                         <select id="pipeActionSelect" class="w-full bg-gray-800 border border-gray-600 rounded p-2 mb-4 text-sm focus:border-purple-500 focus:outline-none">
                             <option value="clean_blanks">Data Cleaner (Trim & Remove Blanks)</option>
@@ -117,29 +115,24 @@
                             <option value="math_calc">Math Calculator (+, -, *, /)</option>
                             <option value="add_id">Inject Unique Row IDs</option>
                         </select>
-                        
                         <button onclick="addPipelineStep()" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded border border-gray-600 transition shadow">
                             + Add Step to Pipeline
                         </button>
-                        
                         <div class="mt-auto pt-4 text-xs text-gray-500 italic border-t border-gray-800">
                             More complex joining and pivot operations are best executed individually due to schema changes.
                         </div>
                     </div>
 
-                    <!-- Right: Pipeline Visualization -->
                     <div class="w-2/3 bg-gray-900 border border-gray-700 rounded-lg p-5 flex flex-col shadow-inner relative">
                         <h3 class="font-bold text-green-400 mb-3 uppercase text-xs tracking-wider border-b border-gray-800 pb-2 flex justify-between">
                             <span>2. Your Pipeline Execution Order</span>
                             <button onclick="clearPipeline()" class="text-red-400 hover:text-red-300">Clear All</button>
                         </h3>
-                        
                         <div id="pipelineContainer" class="flex-grow overflow-y-auto space-y-3 mb-4 pr-2">
                             <div id="emptyPipeMsg" class="flex items-center justify-center h-full text-gray-600 italic border-2 border-dashed border-gray-700 rounded-lg">
                                 Your pipeline is empty. Add steps from the left menu.
                             </div>
                         </div>
-                        
                         <button onclick="executePipeline()" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg w-full transition shadow-lg text-lg flex justify-center items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             Execute Full Pipeline
@@ -148,7 +141,7 @@
                 </div>
             </div>
 
-            <!-- THE INTERACTIVE GUIDE MODULE (Now hidden by default) -->
+            <!-- THE INTERACTIVE GUIDE MODULE -->
             <div id="tab-guide" class="tool-panel">
                 <div><h2 class="text-3xl font-bold text-white mb-2">Welcome to Excel Pro Data Studio</h2><p class="text-gray-400 text-sm">Your complete toolkit for enterprise data manipulation.</p></div>
                 <div class="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4 flex items-center space-x-4"><span class="text-xl">🔍</span><input type="text" id="guideSearch" placeholder="Search for a tool or task..." class="w-full bg-gray-800 border border-gray-600 rounded p-3 text-sm focus:outline-none focus:border-blue-500 transition"></div>
@@ -186,11 +179,12 @@
             <!-- Bottom Console -->
             <div class="h-32 border-t border-gray-800 bg-gray-900 flex flex-col shrink-0">
                 <div class="px-4 py-1 border-b border-gray-800 flex justify-between items-center bg-gray-850"><span class="text-xs font-bold text-gray-400 uppercase">System Console</span><button onclick="document.getElementById('consoleLog').innerHTML=''" class="text-xs text-gray-500 hover:text-white">Clear</button></div>
-                <div id="consoleLog" class="p-2 overflow-y-auto flex-grow font-mono text-[11px] space-y-1"><div class="text-purple-400 font-bold">System Ready. V9 Pipeline Edition loaded.</div></div>
+                <div id="consoleLog" class="p-2 overflow-y-auto flex-grow font-mono text-[11px] space-y-1"><div class="text-blue-400 font-bold">System Ready. V10 Omnivore Edition loaded. Support active for CSV, TSV, XLSX, ODS, and XLSB.</div></div>
             </div>
         </main>
     </div>
 
+    <!-- SCRIPT INCLUDES LOGIC AND DYNAMIC GUIDE RENDERING -->
     <script>
         // CORE STATE & UTILS
         let globalRawDataFiles = []; let globalHeaders = new Set(); let totalRowsLoaded = 0;
@@ -205,20 +199,62 @@
             btn.classList.remove('tab-inactive');
             btn.classList.add('tab-active');
             
-            // special styling for Pipeline and Guide
-            if(tabId === 'tab-pipeline') {
-                btn.classList.add('border-purple-600', 'bg-purple-900');
-            } else {
-                document.getElementById('btn-tab-pipeline').classList.remove('border-purple-600', 'bg-purple-900');
-            }
+            if(tabId === 'tab-pipeline') { btn.classList.add('border-purple-600', 'bg-purple-900'); } else { document.getElementById('btn-tab-pipeline').classList.remove('border-purple-600', 'bg-purple-900'); }
+            if(tabId === 'tab-guide') { btn.classList.replace('bg-gray-900', 'bg-blue-900'); } else { document.getElementById('btn-tab-guide').classList.replace('bg-blue-900', 'bg-gray-900'); }
         }
         
         const val = id => document.getElementById(id).value;
         function getAllMergedData() { let res = []; globalRawDataFiles.forEach(f => res = res.concat(f.data)); return res; }
         function exportExcel(dataArray, filename) { if(!dataArray || dataArray.length === 0) return log('Dataset is empty!', 'error'); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataArray), "Data"); XLSX.writeFile(wb, filename); }
 
-        // FILE LOAD
-        document.getElementById('globalFileInput').addEventListener('change', async (e) => { const files = Array.from(e.target.files); if(files.length === 0) return; log(`Processing ${files.length} file(s)...`, 'info'); for(let file of files) { try { const ext = file.name.split('.').pop().toLowerCase(); let data = await (ext==='csv'?new Promise((res,rej)=>Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>res(r.data),error:rej})):new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>{try{res(XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(e.target.result),{type:'array'}).Sheets[XLSX.read(new Uint8Array(e.target.result),{type:'array'}).SheetNames[0]],{defval:""}));}catch(err){rej(err);}};r.onerror=rej;r.readAsArrayBuffer(file);})); globalRawDataFiles.push({ name: file.name, data: data }); totalRowsLoaded += data.length; if(data.length > 0) Object.keys(data[0]).forEach(k => globalHeaders.add(k)); log(`Loaded ${file.name} (${data.length} rows)`, 'success'); } catch(err) { log(`Failed: ${err.message}`, 'error'); } } updateUIState(); document.getElementById('globalFileInput').value = ''; });
+        // --- V10 UNIVERSAL FILE LOAD LOGIC ---
+        document.getElementById('globalFileInput').addEventListener('change', async (e) => { 
+            const files = Array.from(e.target.files); if(files.length === 0) return; 
+            log(`Processing ${files.length} file(s)...`, 'info'); 
+            
+            for(let file of files) { 
+                try { 
+                    const ext = file.name.split('.').pop().toLowerCase(); 
+                    let data = await new Promise((resolve, reject) => {
+                        // Use PapaParse for delimited text formats
+                        if (['csv', 'tsv', 'txt'].includes(ext)) {
+                            Papa.parse(file, {
+                                header: true,
+                                skipEmptyLines: true,
+                                complete: res => resolve(res.data),
+                                error: rej => reject(rej)
+                            });
+                        } 
+                        // Use SheetJS for spreadsheet formats (xlsx, xls, xlsm, xlsb, ods, fods)
+                        else {
+                            const reader = new FileReader();
+                            reader.onload = e => {
+                                try {
+                                    const rawData = new Uint8Array(e.target.result);
+                                    const wb = XLSX.read(rawData, {type: 'array'});
+                                    const firstSheet = wb.Sheets[wb.SheetNames[0]];
+                                    resolve(XLSX.utils.sheet_to_json(firstSheet, {defval: ""}));
+                                } catch(err) {
+                                    reject(err);
+                                }
+                            };
+                            reader.onerror = reject;
+                            reader.readAsArrayBuffer(file);
+                        }
+                    });
+
+                    globalRawDataFiles.push({ name: file.name, data: data }); 
+                    totalRowsLoaded += data.length; 
+                    if(data.length > 0) Object.keys(data[0]).forEach(k => globalHeaders.add(k)); 
+                    log(`Loaded ${file.name} (${data.length} rows)`, 'success'); 
+                } catch(err) { 
+                    log(`Failed parsing ${file.name}: ${err.message}`, 'error'); 
+                } 
+            } 
+            updateUIState(); 
+            document.getElementById('globalFileInput').value = ''; 
+        });
+
         document.getElementById('clearDataBtn').addEventListener('click', () => { globalRawDataFiles = []; globalHeaders.clear(); totalRowsLoaded = 0; updateUIState(); log('Memory cleared.', 'warn'); });
 
         function updateUIState() {
@@ -228,156 +264,41 @@
             document.querySelectorAll('.dynamic-file-select').forEach(dd => { let html = ''; globalRawDataFiles.forEach((f, i) => html += `<option value="${i}">${f.name}</option>`); dd.innerHTML = html; });
         }
 
-        // --- PIPELINE BUILDER LOGIC (V9) ---
-        
-        let pipelineSteps = [];
-
+        // --- PIPELINE BUILDER LOGIC (V9/10) ---
         function addPipelineStep() {
-            const action = val('pipeActionSelect');
-            const stepId = 'step_' + Date.now();
-            let stepHtml = '';
-            
-            document.getElementById('emptyPipeMsg').style.display = 'none';
-            const container = document.getElementById('pipelineContainer');
-            const stepDiv = document.createElement('div');
-            stepDiv.className = 'bg-gray-800 border border-gray-600 rounded p-3 flex flex-col relative pipe-step-card shadow-sm';
-            stepDiv.id = stepId;
-            stepDiv.dataset.type = action;
-
+            const action = val('pipeActionSelect'); const stepId = 'step_' + Date.now(); let stepHtml = '';
+            document.getElementById('emptyPipeMsg').style.display = 'none'; const container = document.getElementById('pipelineContainer');
+            const stepDiv = document.createElement('div'); stepDiv.className = 'bg-gray-800 border border-gray-600 rounded p-3 flex flex-col relative pipe-step-card shadow-sm'; stepDiv.id = stepId; stepDiv.dataset.type = action;
             const removeBtn = `<button onclick="removePipelineStep('${stepId}')" class="absolute top-2 right-2 text-red-400 hover:text-red-200 text-sm font-bold">X</button>`;
             let title = '';
-            
-            if(action === 'clean_blanks') {
-                title = 'Cleaner: Trim & Remove Blanks';
-                stepHtml = `<p class="text-xs text-gray-400 mt-1">Automatically removes all empty rows and trims spaces from all columns.</p>`;
-            } 
-            else if(action === 'format_text') {
-                title = 'Standardize Text Format';
-                stepHtml = `
-                    <div class="flex space-x-2 mt-2">
-                        <select class="pipe-col dynamic-col-select w-1/2 bg-gray-900 border border-gray-700 rounded p-1 text-sm"></select>
-                        <select class="pipe-act w-1/2 bg-gray-900 border border-gray-700 rounded p-1 text-sm"><option value="UPPER">UPPERCASE</option><option value="lower">lowercase</option><option value="Proper">Proper Case</option></select>
-                    </div>`;
-            }
-            else if(action === 'anonymize') {
-                title = 'Anonymize Data';
-                stepHtml = `
-                    <div class="flex space-x-2 mt-2">
-                        <select class="pipe-col dynamic-col-select w-1/2 bg-gray-900 border border-gray-700 rounded p-1 text-sm"></select>
-                        <select class="pipe-act w-1/2 bg-gray-900 border border-gray-700 rounded p-1 text-sm"><option value="asterisk">Full Asterisk (***)</option><option value="scramble">Scramble</option></select>
-                    </div>`;
-            }
-            else if(action === 'math_calc') {
-                title = 'Math Calculator';
-                stepHtml = `
-                    <div class="flex space-x-2 mt-2">
-                        <select class="pipe-c1 dynamic-col-select w-1/4 bg-gray-900 border border-gray-700 rounded p-1 text-xs"></select>
-                        <select class="pipe-op w-1/6 bg-gray-900 border border-gray-700 rounded p-1 text-xs"><option value="+">+</option><option value="-">-</option><option value="*">*</option><option value="/">/</option></select>
-                        <input type="text" class="pipe-c2 w-1/4 bg-gray-900 border border-gray-700 rounded p-1 text-xs" placeholder="Col2 or Num">
-                        <input type="text" class="pipe-nn w-1/3 bg-gray-900 border border-gray-700 rounded p-1 text-xs" placeholder="New Col Name">
-                    </div>`;
-            }
-            else if(action === 'add_id') {
-                title = 'Inject Unique IDs';
-                stepHtml = `
-                    <div class="mt-2">
-                        <select class="pipe-act w-full bg-gray-900 border border-gray-700 rounded p-1 text-sm"><option value="seq">Sequential Numbers (1, 2, 3)</option><option value="uuid">Random UUIDs</option></select>
-                    </div>`;
-            }
-
+            if(action === 'clean_blanks') { title = 'Cleaner: Trim & Remove Blanks'; stepHtml = `<p class="text-xs text-gray-400 mt-1">Removes all empty rows and trims spaces from all columns.</p>`; } 
+            else if(action === 'format_text') { title = 'Standardize Text Format'; stepHtml = `<div class="flex space-x-2 mt-2"><select class="pipe-col dynamic-col-select w-1/2 bg-gray-900 border border-gray-700 rounded p-1 text-sm"></select><select class="pipe-act w-1/2 bg-gray-900 border border-gray-700 rounded p-1 text-sm"><option value="UPPER">UPPERCASE</option><option value="lower">lowercase</option><option value="Proper">Proper Case</option></select></div>`; }
+            else if(action === 'anonymize') { title = 'Anonymize Data'; stepHtml = `<div class="flex space-x-2 mt-2"><select class="pipe-col dynamic-col-select w-1/2 bg-gray-900 border border-gray-700 rounded p-1 text-sm"></select><select class="pipe-act w-1/2 bg-gray-900 border border-gray-700 rounded p-1 text-sm"><option value="asterisk">Full Asterisk (***)</option><option value="scramble">Scramble</option></select></div>`; }
+            else if(action === 'math_calc') { title = 'Math Calculator'; stepHtml = `<div class="flex space-x-2 mt-2"><select class="pipe-c1 dynamic-col-select w-1/4 bg-gray-900 border border-gray-700 rounded p-1 text-xs"></select><select class="pipe-op w-1/6 bg-gray-900 border border-gray-700 rounded p-1 text-xs"><option value="+">+</option><option value="-">-</option><option value="*">*</option><option value="/">/</option></select><input type="text" class="pipe-c2 w-1/4 bg-gray-900 border border-gray-700 rounded p-1 text-xs" placeholder="Col2 or Num"><input type="text" class="pipe-nn w-1/3 bg-gray-900 border border-gray-700 rounded p-1 text-xs" placeholder="New Col Name"></div>`; }
+            else if(action === 'add_id') { title = 'Inject Unique IDs'; stepHtml = `<div class="mt-2"><select class="pipe-act w-full bg-gray-900 border border-gray-700 rounded p-1 text-sm"><option value="seq">Sequential Numbers (1, 2, 3)</option><option value="uuid">Random UUIDs</option></select></div>`; }
             stepDiv.innerHTML = `<div class="font-bold text-sm text-purple-300">Step ${document.querySelectorAll('.pipe-step-card').length + 1}: ${title}</div>${removeBtn}${stepHtml}`;
-            container.appendChild(stepDiv);
-            
-            // Re-populate dropdowns so the new step has column options
-            updateUIState();
-            log(`Added '${title}' to the pipeline.`);
+            container.appendChild(stepDiv); updateUIState(); log(`Added '${title}' to the pipeline.`);
         }
-
-        function removePipelineStep(id) {
-            document.getElementById(id).remove();
-            if(document.querySelectorAll('.pipe-step-card').length === 0) {
-                document.getElementById('emptyPipeMsg').style.display = 'flex';
-            }
-            // Update step numbers
-            document.querySelectorAll('.pipe-step-card').forEach((el, idx) => {
-                el.querySelector('.font-bold').textContent = el.querySelector('.font-bold').textContent.replace(/Step \d+:/, `Step ${idx + 1}:`);
-            });
-        }
-
-        function clearPipeline() {
-            document.querySelectorAll('.pipe-step-card').forEach(el => el.remove());
-            document.getElementById('emptyPipeMsg').style.display = 'flex';
-            log('Pipeline cleared.', 'warn');
-        }
-
+        function removePipelineStep(id) { document.getElementById(id).remove(); if(document.querySelectorAll('.pipe-step-card').length === 0) document.getElementById('emptyPipeMsg').style.display = 'flex'; document.querySelectorAll('.pipe-step-card').forEach((el, idx) => { el.querySelector('.font-bold').textContent = el.querySelector('.font-bold').textContent.replace(/Step \d+:/, `Step ${idx + 1}:`); }); }
+        function clearPipeline() { document.querySelectorAll('.pipe-step-card').forEach(el => el.remove()); document.getElementById('emptyPipeMsg').style.display = 'flex'; log('Pipeline cleared.', 'warn'); }
         function executePipeline() {
-            let data = getAllMergedData();
-            if(data.length === 0) return log('Pipeline Error: No files loaded!', 'error');
-            
-            const steps = document.querySelectorAll('.pipe-step-card');
-            if(steps.length === 0) return log('Pipeline Error: Add steps first!', 'error');
-
+            let data = getAllMergedData(); if(data.length === 0) return log('Pipeline Error: No files loaded!', 'error');
+            const steps = document.querySelectorAll('.pipe-step-card'); if(steps.length === 0) return log('Pipeline Error: Add steps first!', 'error');
             log(`Executing Macro Pipeline (${steps.length} steps)...`, 'info');
-            
             try {
                 steps.forEach((step, idx) => {
-                    const type = step.dataset.type;
-                    log(`-> Running Step ${idx + 1}...`);
-                    
-                    if(type === 'clean_blanks') {
-                        let nd = [];
-                        data.forEach(r => {
-                            let nr = {}; let isEmpty = true;
-                            for(let[k,v] of Object.entries(r)) {
-                                let vl = v; if(typeof vl === 'string') vl = vl.trim();
-                                nr[k] = vl; if(vl !== "" && vl !== null) isEmpty = false;
-                            }
-                            if(!isEmpty) nd.push(nr);
-                        });
-                        data = nd;
-                    }
-                    else if(type === 'format_text') {
-                        let c = step.querySelector('.pipe-col').value; let a = step.querySelector('.pipe-act').value;
-                        data = data.map(r => {
-                            let nr={...r}; let v=(nr[c]||'').toString();
-                            if(a==='UPPER') nr[c]=v.toUpperCase(); else if(a==='lower') nr[c]=v.toLowerCase(); else if(a==='Proper') nr[c]=v.toLowerCase().replace(/\w/g, x=>x.toUpperCase());
-                            return nr;
-                        });
-                    }
-                    else if(type === 'anonymize') {
-                        let c = step.querySelector('.pipe-col').value; let a = step.querySelector('.pipe-act').value;
-                        data = data.map(r => {
-                            let nr={...r}; let v=(nr[c]||'').toString(); if(!v)return nr;
-                            if(a==='asterisk')nr[c]='*'.repeat(v.length||8); else if(a==='scramble')nr[c]=v.split('').sort(()=>0.5-Math.random()).join('');
-                            return nr;
-                        });
-                    }
-                    else if(type === 'math_calc') {
-                        let c1 = step.querySelector('.pipe-c1').value; let op = step.querySelector('.pipe-op').value;
-                        let c2 = step.querySelector('.pipe-c2').value; let nn = step.querySelector('.pipe-nn').value || 'Calc_Result';
-                        data = data.map(r => {
-                            let nr={...r}; let v1=parseFloat(nr[c1])||0; let v2=nr.hasOwnProperty(c2)?parseFloat(nr[c2])||0:parseFloat(c2)||0;
-                            let ans=0; if(op==='+')ans=v1+v2; else if(op==='-')ans=v1-v2; else if(op==='*')ans=v1*v2; else if(op==='/')ans=v2!==0?v1/v2:0;
-                            nr[nn]=ans; return nr;
-                        });
-                        globalHeaders.add(nn); // Ensure next step knows about new col
-                    }
-                    else if(type === 'add_id') {
-                        let a = step.querySelector('.pipe-act').value; let i = 1;
-                        data = data.map(r => {
-                            let nr = {...r}; if(a === 'seq') nr['Row_ID'] = i++; else nr['Row_ID'] = 'id-' + Math.random().toString(36).substr(2, 9); return nr;
-                        });
-                    }
+                    const type = step.dataset.type; log(`-> Running Step ${idx + 1}...`);
+                    if(type === 'clean_blanks') { let nd = []; data.forEach(r => { let nr = {}; let isEmpty = true; for(let[k,v] of Object.entries(r)) { let vl = v; if(typeof vl === 'string') vl = vl.trim(); nr[k] = vl; if(vl !== "" && vl !== null) isEmpty = false; } if(!isEmpty) nd.push(nr); }); data = nd; }
+                    else if(type === 'format_text') { let c = step.querySelector('.pipe-col').value; let a = step.querySelector('.pipe-act').value; data = data.map(r => { let nr={...r}; let v=(nr[c]||'').toString(); if(a==='UPPER') nr[c]=v.toUpperCase(); else if(a==='lower') nr[c]=v.toLowerCase(); else if(a==='Proper') nr[c]=v.toLowerCase().replace(/\w/g, x=>x.toUpperCase()); return nr; }); }
+                    else if(type === 'anonymize') { let c = step.querySelector('.pipe-col').value; let a = step.querySelector('.pipe-act').value; data = data.map(r => { let nr={...r}; let v=(nr[c]||'').toString(); if(!v)return nr; if(a==='asterisk')nr[c]='*'.repeat(v.length||8); else if(a==='scramble')nr[c]=v.split('').sort(()=>0.5-Math.random()).join(''); return nr; }); }
+                    else if(type === 'math_calc') { let c1 = step.querySelector('.pipe-c1').value; let op = step.querySelector('.pipe-op').value; let c2 = step.querySelector('.pipe-c2').value; let nn = step.querySelector('.pipe-nn').value || 'Calc_Result'; data = data.map(r => { let nr={...r}; let v1=parseFloat(nr[c1])||0; let v2=nr.hasOwnProperty(c2)?parseFloat(nr[c2])||0:parseFloat(c2)||0; let ans=0; if(op==='+')ans=v1+v2; else if(op==='-')ans=v1-v2; else if(op==='*')ans=v1*v2; else if(op==='/')ans=v2!==0?v1/v2:0; nr[nn]=ans; return nr; }); globalHeaders.add(nn); }
+                    else if(type === 'add_id') { let a = step.querySelector('.pipe-act').value; let i = 1; data = data.map(r => { let nr = {...r}; if(a === 'seq') nr['Row_ID'] = i++; else nr['Row_ID'] = 'id-' + Math.random().toString(36).substr(2, 9); return nr; }); }
                 });
-                
-                exportExcel(data, `Automated_Pipeline_Output_${Date.now()}.xlsx`);
-                log('Pipeline successfully completed and file downloaded!', 'success');
-            } catch (err) {
-                log(`Pipeline failed on Step execution: ${err.message}`, 'error');
-            }
+                exportExcel(data, `Automated_Pipeline_Output_${Date.now()}.xlsx`); log('Pipeline successfully completed!', 'success');
+            } catch (err) { log(`Pipeline failed: ${err.message}`, 'error'); }
         }
 
-        // --- PREVIOUS TOOL FUNCTIONS (Condensed) ---
+        // --- ALL STANDARD TOOL FUNCTIONS ---
         function executeMerge() { let m=[]; globalRawDataFiles.forEach(f=>{ m=m.concat(f.data.map(r=>{ let nr={...r}; if(document.getElementById('mergeAddSource').checked) nr['Source']=f.name; return nr; })); }); exportExcel(m, `Merged_${Date.now()}.xlsx`); }
         function executeClean() { let c=[]; let s=new Set(); let t=document.getElementById('cleanTrim').checked; let b=document.getElementById('cleanBlanks').checked; let ded=document.getElementById('cleanDedupe').checked; let dc=val('dedupeColumn'); getAllMergedData().forEach(r=>{ let nr={}; let ie=true; for(let[k,v] of Object.entries(r)){ let vl=v; if(t&&typeof vl==='string')vl=vl.trim(); nr[k]=vl; if(vl!==""&&vl!==null)ie=false; } if(b&&ie)return; if(ded){let h=dc==='ALL'?JSON.stringify(nr):nr[dc]; if(s.has(h))return; s.add(h);} c.push(nr); }); exportExcel(c, `Cleaned_${Date.now()}.xlsx`); }
         async function executeSplit() { let c=val('splitColumn'); let zip=new JSZip(); let g={}; getAllMergedData().forEach(r=>{ let k=r[c]||'UNGROUPED'; if(!g[k])g[k]=[]; g[k].push(r); }); for(let[gn,gd] of Object.entries(g)){ const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gd), gn.toString().replace(/[\/*?:[\]]/g, '_').substring(0,31)); zip.file(`${gn.toString().replace(/[<>:"/\|?*]/g, '_')}.xlsx`, XLSX.write(wb, {bookType:'xlsx', type:'array'})); } saveAs(await zip.generateAsync({type:'blob'}), `Split_${Date.now()}.zip`); }
