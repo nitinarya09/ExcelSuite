@@ -134,10 +134,9 @@
             </div>
         </div>
         <div class="flex items-center space-x-3">
-            <!-- Workspace Summary Badge -->
             <div id="globalDataBadge" class="px-3.5 py-1.5 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono text-slate-700 dark:text-slate-300 flex items-center space-x-2">
                 <span class="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600 animate-pulse" id="workspacePulse"></span>
-                <span>0 Tables loaded</span>
+                <span id="workspaceBadgeText">0 Tables loaded</span>
             </div>
             
             <!-- Dark/Light Theme Toggle -->
@@ -241,19 +240,18 @@
                     </button>
                 </div>
 
-                <!-- Export Active Table Card -->
                 <div id="exportTableCard" class="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-lg p-3 space-y-3 hidden animate-fade-in shadow-lg">
                     <h4 class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 pb-1.5 flex items-center space-x-1.5">
                         <i data-lucide="download-cloud" class="w-4 h-4"></i>
-                        <span>Export Active Table</span>
+                        <span>Export Tables</span>
                     </h4>
                     <div class="space-y-2 text-xs">
                         <div>
-                            <label class="block text-slate-500 dark:text-slate-400 mb-1">File Name</label>
+                            <label class="block text-slate-500 dark:text-slate-400 mb-1">File Name (Active)</label>
                             <input type="text" id="exportFileName" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-800 dark:text-slate-200" value="Cleaned_Export">
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
+                        <div class="flex items-center space-x-2">
+                            <div class="flex-grow">
                                 <label class="block text-slate-500 dark:text-slate-400 mb-1">Export Format</label>
                                 <select id="exportFormat" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded p-1.5 text-slate-800 dark:text-slate-200">
                                     <option value="xlsx">Excel (.xlsx)</option>
@@ -262,12 +260,16 @@
                                     <option value="json">JSON (.json)</option>
                                 </select>
                             </div>
-                            <div class="flex items-end">
-                                <button onclick="triggerWorkspaceExport()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold transition flex justify-center items-center space-x-1 shadow-md shadow-emerald-900/10">
-                                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                                    <span>Export</span>
-                                </button>
-                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <button onclick="triggerWorkspaceExport()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold transition flex justify-center items-center space-x-1 shadow-md shadow-emerald-900/10">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                <span>Export Active</span>
+                            </button>
+                            <button onclick="triggerBulkZipExport()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold transition flex justify-center items-center space-x-1 shadow-md shadow-indigo-900/10">
+                                <i data-lucide="archive" class="w-3.5 h-3.5"></i>
+                                <span>Export All (ZIP)</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1668,7 +1670,7 @@
 
         function updateWorkspaceSidebarUI() {
             const list = document.getElementById('workspaceTablesList');
-            const badge = document.getElementById('globalDataBadge');
+            const badgeText = document.getElementById('workspaceBadgeText');
             const pulse = document.getElementById('workspacePulse');
             
             if (workspace.tables.length === 0) {
@@ -1677,13 +1679,17 @@
                         No tables loaded. Upload a CSV/Excel file to begin.
                     </div>
                 `;
-                badge.textContent = "0 Tables loaded";
-                pulse.className = "w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600";
+                if (badgeText) badgeText.textContent = "0 Tables loaded";
+                if (pulse) pulse.className = "w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600";
                 return;
             }
             
-            badge.textContent = `${workspace.tables.length} Table(s) (${workspace.tables.reduce((sum, t) => sum + t.data.length, 0).toLocaleString()} Rows)`;
-            pulse.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+            if (badgeText) {
+                badgeText.textContent = `${workspace.tables.length} Table(s) (${workspace.tables.reduce((sum, t) => sum + t.data.length, 0).toLocaleString()} Rows)`;
+            }
+            if (pulse) {
+                pulse.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+            }
             
             let html = "";
             workspace.tables.forEach(t => {
@@ -2099,6 +2105,50 @@
                 const blob = new Blob([jsonString], { type: "application/json;charset=utf-8;" });
                 saveAs(blob, `${name}.json`);
                 log(`Successfully downloaded "${name}.json"`, 'success');
+            }
+        }
+        
+        async function triggerBulkZipExport() {
+            if (workspace.tables.length === 0) {
+                return log('Export error: No tables in workspace to package!', 'error');
+            }
+            
+            const format = document.getElementById('exportFormat').value;
+            const zip = new JSZip();
+            log(`Packaging ${workspace.tables.length} tables into ZIP archive...`, 'system');
+            
+            try {
+                for (let i = 0; i < workspace.tables.length; i++) {
+                    const table = workspace.tables[i];
+                    const baseName = table.name.replace(/[^a-zA-Z0-9_\-\(\) ]/g, "_");
+                    
+                    if (format === 'xlsx') {
+                        const wb = XLSX.utils.book_new();
+                        const ws = XLSX.utils.json_to_sheet(table.data);
+                        XLSX.utils.book_append_sheet(wb, ws, "WorkspaceData");
+                        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+                        const buf = new ArrayBuffer(wbout.length);
+                        const view = new Uint8Array(buf);
+                        for (let j = 0; j < wbout.length; j++) view[j] = wbout.charCodeAt(j) & 0xFF;
+                        zip.file(`${baseName}.xlsx`, buf);
+                    } else if (format === 'csv') {
+                        const csvString = Papa.unparse(table.data);
+                        zip.file(`${baseName}.csv`, csvString);
+                    } else if (format === 'tsv') {
+                        const tsvString = Papa.unparse(table.data, { delimiter: "\t" });
+                        zip.file(`${baseName}.tsv`, tsvString);
+                    } else if (format === 'json') {
+                        const jsonString = JSON.stringify(table.data, null, 2);
+                        zip.file(`${baseName}.json`, jsonString);
+                    }
+                }
+                
+                const content = await zip.generateAsync({ type: "blob" });
+                saveAs(content, `Workspace_Export_${Date.now()}.zip`);
+                log(`Successfully downloaded ZIP archive containing ${workspace.tables.length} files.`, 'success');
+            } catch (err) {
+                log(`ZIP Generation failed: ${err.message}`, 'error');
+                console.error(err);
             }
         }
 
